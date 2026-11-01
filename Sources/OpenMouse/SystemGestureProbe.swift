@@ -94,6 +94,24 @@ func runSystemGestureProbe() {
             }
         }
     }
-    after(0.5) { next() }; after(15) { finish("System gesture verification timed out") }
+    // A positive control separates unsupported/misobserved hosted desktops from
+    // a failed synthetic gesture. This launches Apple's own Mission Control UI.
+    after(0.5) {
+        let control = URL(fileURLWithPath: "/System/Applications/Mission Control.app")
+        guard FileManager.default.fileExists(atPath: control.path) else { finish("Mission Control positive-control application is absent"); return }
+        NSWorkspace.shared.openApplication(at: control, configuration: .init())
+        after(1) {
+            let observed = dockAccessibility()
+            let visible = observed.ids.contains("mc") || observed.ids.contains { $0.hasPrefix("mc.") || $0.contains("mission") }
+            results.append(["case": "mission-control-positive-control", "missionControlVisible": visible, "afterAX": observed.tree])
+            emitter.keyboard(code: 53)
+            after(0.7) {
+                guard visible else { finish("The hosted desktop/observer did not detect Apple's own Mission Control UI"); return }
+                window.makeKeyAndOrderFront(nil); app.activate(ignoringOtherApps: true)
+                after(0.3) { next() }
+            }
+        }
+    }
+    after(20) { finish("System gesture verification timed out") }
     app.run()
 }
