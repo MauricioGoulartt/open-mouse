@@ -49,6 +49,22 @@ func runSystemGestureProbe() {
         let rows = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[String: Any]] ?? []
         return rows.filter { ($0[kCGWindowNumber as String] as? Int) == window.windowNumber }
     }
+    func elementAtFixtureCenter() -> [String: String] {
+        let center = CGPoint(x: window.frame.midX,
+                             y: CGDisplayBounds(CGMainDisplayID()).maxY - window.frame.midY)
+        var element: AXUIElement?
+        guard AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), Float(center.x), Float(center.y), &element) == .success,
+              let element else { return [:] }
+        var pid: pid_t = 0
+        AXUIElementGetPid(element, &pid)
+        var result = ["bundle": NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? ""]
+        for key in ["AXRole", "AXIdentifier", "AXTitle", "AXDescription", "AXValue"] {
+            var value: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, key as CFString, &value) == .success,
+               let value = value as? String { result[key] = value }
+        }
+        return result
+    }
     func capture(_ name: String) {
         // This command is guarded above and runs only on the disposable CI
         // desktop containing this fixture, never on the user's desktop.
@@ -76,13 +92,15 @@ func runSystemGestureProbe() {
     func after(_ seconds: Double, _ action: @escaping () -> Void) { DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: action) }
     let cases: [(String, MouseAction, ScrollVector)] = [
         ("vertical-dock", MouseAction(.spacesAndMissionControl), ScrollVector(y: -200)),
-        ("four-finger-pinch", MouseAction(.desktopAndLaunchpad), ScrollVector(y: 18))
+        ("four-finger-pinch-apps", MouseAction(.desktopAndLaunchpad), ScrollVector(y: 18)),
+        ("four-finger-pinch-desktop", MouseAction(.desktopAndLaunchpad), ScrollVector(y: -18))
     ]
     var index = 0
     func next() {
         guard index < cases.count else { finish(); return }
         let item = cases[index]; let before = windows(); let beforeAX = dockAccessibility()
         let beforeFixture = fixtureInfo()
+        let beforeElement = elementAtFixtureCenter()
         emitter.apply([.begin(item.1)])
         for step in 1...12 {
             after(Double(step) * 0.025) { emitter.apply([.change(item.1, ScrollVector(x: item.2.x / 12, y: item.2.y / 12))]) }
@@ -94,14 +112,20 @@ func runSystemGestureProbe() {
             let newIDs = afterAX.ids.subtracting(beforeAX.ids)
             let missionControl = afterAX.ids.contains("mc") || newIDs.contains { $0.contains("mission") || $0.hasPrefix("mc.") }
             let launchpad = newIDs.contains { $0.contains("launchpad") || $0 == "lp" || $0.hasPrefix("lp.") }
-            let desktop = !fixtureOnScreen()
-            let changed = item.0 == "vertical-dock" ? missionControl : launchpad || desktop
+            let afterElement = elementAtFixtureCenter()
+            // Apps on macOS 26 is a nonactivating Spotlight panel. It does not
+            // appear in the Dock AX tree or change frontmostApplication.
+            let apps = beforeElement["bundle"] != "com.apple.Spotlight" && afterElement["bundle"] == "com.apple.Spotlight"
+            let desktop = !fixtureOnScreen() || (beforeElement["bundle"] == Bundle.main.bundleIdentifier && afterElement["bundle"] == "com.apple.finder")
+            let changed = item.0 == "vertical-dock" ? missionControl :
+                (item.0 == "four-finger-pinch-apps" ? launchpad || apps : desktop)
             capture(item.0)
             results.append(["case": item.0, "before": before, "after": afterWindows,
                             "beforeAX": beforeAX.tree, "afterAX": afterAX.tree,
                             "beforeFixture": beforeFixture, "afterFixture": fixtureInfo(),
+                            "beforeElement": beforeElement, "afterElement": afterElement,
                             "frontmostBundle": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "",
-                            "missionControlVisible": missionControl, "launchpadVisible": launchpad,
+                            "missionControlVisible": missionControl, "launchpadVisible": launchpad, "appsVisible": apps,
                             "fixtureHiddenByShowDesktop": desktop, "semanticTransitionObserved": changed])
             emitter.keyboard(code: 53)
             after(0.6) {
