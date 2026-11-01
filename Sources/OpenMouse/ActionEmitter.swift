@@ -127,7 +127,7 @@ final class ActionEmitter {
         case .scrollAndNavigate, .horizontalScroll, .fastScroll, .preciseScroll:
             scrollStarted = true; scroll(.zero, phase: 1)
         case .desktopAndLaunchpad:
-            onNotice?("A pinça de quatro dedos ainda precisa de implementação e validação.")
+            dockAxis = 3; dockSwipe(phase: 1)
         default: break
         }
     }
@@ -152,6 +152,13 @@ final class ActionEmitter {
             dockVelocity = (dockProgress - previous) / max(0.001, now - lastGestureTime)
             lastGestureTime = now
             dockSwipe(phase: 2)
+        case .desktopAndLaunchpad:
+            let previous = dockProgress
+            dockProgress = -(continuous.x + continuous.y) / 25
+            let now = ProcessInfo.processInfo.systemUptime
+            dockVelocity = (dockProgress - previous) / max(0.001, now - lastGestureTime)
+            lastGestureTime = now
+            dockSwipe(phase: 2)
         default: break
         }
     }
@@ -163,7 +170,7 @@ final class ActionEmitter {
         case .rotate: gesture(hidType: 5, phase: phase, valueField: 114); gesture(hidType: 62, phase: 0)
         case .scrollAndNavigate, .horizontalScroll, .fastScroll, .preciseScroll:
             scroll(.zero, phase: phase); scrollStarted = false
-        case .spacesAndMissionControl:
+        case .spacesAndMissionControl, .desktopAndLaunchpad:
             if dockAxis != nil { dockSwipe(phase: phase) }; dockAxis = nil
         default: break
         }
@@ -190,6 +197,8 @@ final class ActionEmitter {
         event.setIntegerValueField(CGEventField(rawValue: 110)!, value: 23)
         event.setIntegerValueField(CGEventField(rawValue: 132)!, value: phase)
         event.setIntegerValueField(CGEventField(rawValue: 123)!, value: axis)
+        // GestureMotionScale=3 is the four-finger Dock pinch protocol.
+        // The primary-source header mapping is recorded in the research notes.
         event.setDoubleValueField(CGEventField(rawValue: 124)!, value: dockProgress)
         event.setIntegerValueField(CGEventField(rawValue: 135)!, value: Int64(Int32(bitPattern: Float(dockProgress).bitPattern)))
         if phase == 4 || phase == 8 {

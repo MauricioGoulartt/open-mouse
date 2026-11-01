@@ -163,9 +163,7 @@ struct SettingsView: View {
                                 if mapping.action.kind == .keyboardShortcut {
                                     Text(mapping.action.modifiers.title + " " + (mapping.action.keyCode.map { "#\($0)" } ?? ""))
                                 }
-                                if mapping.action.kind == .desktopAndLaunchpad {
-                                    Text("· pendente").foregroundStyle(.orange)
-                                } else if [.smartZoom, .zoom, .rotate, .spacesAndMissionControl].contains(mapping.action.kind) {
+                                if [.smartZoom, .zoom, .rotate, .spacesAndMissionControl, .desktopAndLaunchpad].contains(mapping.action.kind) {
                                     Text("· experimental").foregroundStyle(.orange)
                                 }
                             }.font(.caption).foregroundStyle(.secondary)
@@ -181,7 +179,7 @@ struct SettingsView: View {
                     }.padding(.vertical, 7)
                 }
             }
-            Text("Mesa/Launchpad por pinça de quatro dedos ainda não está implementado. Os demais gestos nativos são experimentais e exigem validação com o mouse real.")
+            Text("Os gestos nativos usam protocolos privados do macOS. Valide a sensibilidade e o comportamento com seu mouse e seus aplicativos.")
                 .font(.caption).foregroundStyle(.secondary).padding(18)
         }
     }

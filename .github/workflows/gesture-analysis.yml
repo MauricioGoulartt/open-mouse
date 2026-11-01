@@ -24,15 +24,34 @@ jobs:
           curl --proto '=https' -fLsS 'https://github.com/noah-nuebling/mac-mouse-fix/releases/download/3.1.0/MacMouseFixApp.zip' -o reference.zip
           printf '%s  %s\n' 'afee98a91e86b287cc28c652fddefeeb02e17573af0e666d1ffa542f1025308f' reference.zip | sha256sum -c -
           unzip -q reference.zip
+          # Ghidra requires an explicitly selected thin slice of a universal Mach-O.
+          python3 - <<'PY'
+          import pathlib, struct
+          root = pathlib.Path.cwd()
+          path = root / 'Mac Mouse Fix.app/Contents/Library/LoginItems/Mac Mouse Fix Helper.app/Contents/MacOS/Mac Mouse Fix Helper'
+          data = path.read_bytes()
+          magic, count = struct.unpack_from('>II', data)
+          assert magic == 0xcafebabe and 0 < count <= 8, 'Unsupported Mach-O container'
+          for index in range(count):
+              cpu, subtype, offset, size, alignment = struct.unpack_from('>IIIII', data, 8 + index * 20)
+              if cpu == 0x01000007:
+                  assert 0 < size <= 20_000_000 and offset + size <= len(data)
+                  image = data[offset:offset + size]
+                  assert image[:4] == b'\xcf\xfa\xed\xfe', 'Expected thin 64-bit Mach-O'
+                  (root / 'helper-x86_64').write_bytes(image)
+                  break
+          else:
+              raise RuntimeError('No x86_64 slice found')
+          PY
       - name: Inspect native gesture names and dispatch metadata
         shell: bash
         run: |
           set -euo pipefail
           export GHIDRA_INSTALL_DIR="$RUNNER_TEMP/open-mouse-gesture-analysis/ghidra_12.1.4_PUBLIC"
           export JAVA_HOME="$JAVA_HOME_21_X64"
-          target="$RUNNER_TEMP/open-mouse-gesture-analysis/Mac Mouse Fix.app/Contents/Library/LoginItems/Mac Mouse Fix Helper.app/Contents/MacOS/Mac Mouse Fix Helper"
+          target="$RUNNER_TEMP/open-mouse-gesture-analysis/helper-x86_64"
           npx --yes rea-agents@6.8.0 inspect-native-dispatch-metadata "$target" --provider ghidra --json > artifacts/gesture-investigation/dispatch.json
-          npx --yes rea-agents@6.8.0 search "$target" Gesture --kind procedures --provider ghidra --json > artifacts/gesture-investigation/gesture-procedures.json
+          npx --yes rea-agents@6.8.0 search "$target" TouchSimulator --kind procedures --provider ghidra --json > artifacts/gesture-investigation/gesture-procedures.json
           npx --yes rea-agents@6.8.0 search "$target" pinch --kind procedures --provider ghidra --json > artifacts/gesture-investigation/pinch-procedures.json
       - uses: actions/upload-artifact@v7
         if: always()
