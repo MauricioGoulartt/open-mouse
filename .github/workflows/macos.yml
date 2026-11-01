@@ -29,10 +29,16 @@ jobs:
         run: bash scripts/package-app.sh --skip-build
       - name: Non-intercepting diagnostics
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --diagnose | tee dist/diagnostics.json'
+      - name: Native event protocol checks without posting
+        run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --check-native-events | tee dist/native-event-checks.txt'
+      - name: Render native settings without displaying a window
+        run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --render-preview "$PWD/dist/previews"'
       - uses: actions/upload-artifact@v7
         with:
           name: OpenMouse-macOS
           path: |
             dist/OpenMouse-macOS.zip
             dist/diagnostics.json
+            dist/native-event-checks.txt
+            dist/previews/
           retention-days: 14

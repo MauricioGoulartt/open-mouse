@@ -15,6 +15,9 @@ final class ActionEmitter {
     private var dockProgress: Double = 0
     private var dockVelocity: Double = 0
     private var lastGestureTime: Double = 0
+    private let eventSink: ((CGEvent, CGEventTapLocation) -> Void)?
+
+    init(eventSink: ((CGEvent, CGEventTapLocation) -> Void)? = nil) { self.eventSink = eventSink }
 
     func apply(_ effects: [EngineEffect]) {
         for effect in effects {
@@ -223,6 +226,6 @@ final class ActionEmitter {
 
     private func post(_ event: CGEvent, tap: CGEventTapLocation = .cghidEventTap) {
         event.setIntegerValueField(.eventSourceUserData, value: Self.marker)
-        event.post(tap: tap)
+        if let eventSink { eventSink(event, tap) } else { event.post(tap: tap) }
     }
 }

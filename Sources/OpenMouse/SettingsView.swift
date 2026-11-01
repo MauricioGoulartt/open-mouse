@@ -17,6 +17,11 @@ struct SettingsView: View {
     @State private var editing: Mapping?
     @State private var showReset = false
 
+    init(store: SettingsStore, initialSection: String? = nil) {
+        self.store = store
+        _section = State(initialValue: initialSection.flatMap(SettingsSection.init(rawValue:)) ?? .general)
+    }
+
     var body: some View {
         NavigationSplitView {
             List(SettingsSection.allCases, selection: $section) { item in
@@ -277,7 +282,7 @@ private struct MappingEditor: View {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode != 53 {
                 mapping.action.keyCode = event.keyCode
-                mapping.action.modifiers = Modifiers(rawValue: event.modifierFlags.rawValue).intersection(.supported)
+                mapping.action.modifiers = Modifiers(rawValue: UInt64(event.modifierFlags.rawValue)).intersection(.supported)
             }
             stopRecording(); return nil
         }

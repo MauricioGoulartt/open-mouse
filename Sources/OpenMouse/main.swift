@@ -46,7 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationWillTerminate(_ notification: Notification) { store?.engine.stop() }
 }
 
-if CommandLine.arguments.contains("--diagnose") {
+if let index = CommandLine.arguments.firstIndex(of: "--render-preview"), CommandLine.arguments.count > index + 1 {
+    renderPreviews(to: URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true))
+} else if CommandLine.arguments.contains("--check-native-events") {
+    do { for check in try verifyNativeEvents() { print("PASS: \(check)") } }
+    catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
+} else if CommandLine.arguments.contains("--diagnose") {
     let info: [String: Any] = [
         "name": "Open Mouse", "version": "0.1.0", "accessibility": AXIsProcessTrusted(),
         "inputMonitoring": CGPreflightListenEventAccess(), "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
