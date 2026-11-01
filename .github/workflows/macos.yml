@@ -1,0 +1,38 @@
+name: macOS
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Runtime and executor
+        run: |
+          sw_vers
+          uname -m
+          swift --version
+          printf 'sha=%s\nrunner=%s\n' "$GITHUB_SHA" "$RUNNER_NAME"
+      - name: Contract and regression tests
+        run: swift test --jobs 2
+      - name: Release build
+        run: swift build -c release --jobs 2
+      - name: Package app
+        run: bash scripts/package-app.sh --skip-build
+      - name: Non-intercepting diagnostics
+        run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --diagnose | tee dist/diagnostics.json'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: OpenMouse-macOS
+          path: |
+            dist/OpenMouse-macOS.zip
+            dist/diagnostics.json
+          retention-days: 14

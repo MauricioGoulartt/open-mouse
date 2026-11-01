@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>CFBundleName</key><string>Open Mouse</string>
+    <key>CFBundleDisplayName</key><string>Open Mouse</string>
+    <key>CFBundleIdentifier</key><string>io.github.mauriciogoulartt.open-mouse</string>
+    <key>CFBundleExecutable</key><string>OpenMouse</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.1.0</string>
+    <key>CFBundleVersion</key><string>1</string>
+    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>LSUIElement</key><true/>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Open Mouse contributors. MIT License.</string>
+    <key>NSInputMonitoringUsageDescription</key><string>O Open Mouse precisa observar os botões e a roda do mouse para aplicar seus ajustes.</string>
+</dict></plist>

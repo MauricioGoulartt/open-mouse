@@ -1,0 +1,36 @@
+name: REA reference analysis
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  analyze:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Analyze official reference without starting it
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/analysis "$RUNNER_TEMP/open-mouse-reference"
+          curl --proto '=https' -fLsS 'https://github.com/noah-nuebling/mac-mouse-fix/releases/download/3.1.0/MacMouseFixApp.zip' -o "$RUNNER_TEMP/open-mouse-reference/reference.zip"
+          shasum -a 256 "$RUNNER_TEMP/open-mouse-reference/reference.zip" > artifacts/analysis/reference-sha256.txt
+          ditto -x -k "$RUNNER_TEMP/open-mouse-reference/reference.zip" "$RUNNER_TEMP/open-mouse-reference"
+          node --version > artifacts/analysis/runtime.txt
+          npx --yes rea-agents@6.8.0 --version >> artifacts/analysis/runtime.txt
+          npx --yes rea-agents@6.8.0 inspect-desktop-application "$RUNNER_TEMP/open-mouse-reference/Mac Mouse Fix.app" --json > artifacts/analysis/rea-desktop.json
+          npx --yes rea-agents@6.8.0 inspect-macho "$RUNNER_TEMP/open-mouse-reference/Mac Mouse Fix.app/Contents/MacOS/Mac Mouse Fix" --json > artifacts/analysis/rea-app-macho.json
+          npx --yes rea-agents@6.8.0 inspect-macho "$RUNNER_TEMP/open-mouse-reference/Mac Mouse Fix.app/Contents/Library/LoginItems/Mac Mouse Fix Helper.app/Contents/MacOS/Mac Mouse Fix Helper" --json > artifacts/analysis/rea-helper-macho.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: REA-reference-evidence
+          path: artifacts/analysis/
+          retention-days: 30
+      - name: Scoped cleanup
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/open-mouse-reference"
