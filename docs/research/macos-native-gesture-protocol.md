@@ -1,6 +1,6 @@
 # Gestos nativos no macOS: evidência e lacunas
 
-Pesquisa de 1º de novembro de 2026 para implementação própria. Fontes primárias Apple e WebKit; não foram usados código, constantes ou recursos do Mac Mouse Fix. Não foram feitos testes, instalações ou interações com a UI.
+Pesquisa de 1º de novembro de 2026 para implementação própria. Foram consultadas fontes Apple, WebKit e projetos independentes; a investigação também consultou a interface e constantes do Mac Mouse Fix. Nenhuma implementação do Mac Mouse Fix foi incorporada. Esta pesquisa não executou testes, instalações ou interações com a UI; as evidências de execução relatadas pela tarefa principal aparecem abaixo.
 
 **Resultado:** as fontes localizadas descrevem suficientemente a semântica dos gestos recebidos pelos aplicativos e a criação pública de eventos de rolagem, e revelam campos privados usados pelo WebKit em testes para gestos; **não especificam um protocolo público completo nem comprovam injeção global em outros processos ou no Dock**. Os valores privados identificados estão abaixo; funcionamento global ainda requer validação. Criar rolagem sintética é demonstrado; isso não demonstra que seja equivalente a pinça ou gesto do Dock.
 
@@ -58,6 +58,27 @@ Isto comprova a construção de eventos para testes em views do WebKit, não que
 O teste WebKit cria eventos sintéticos de magnify com Began/Changed/Ended e smart magnify e invoca os respectivos métodos do `NSView` do próprio teste. Já a rolagem usa `CGEventCreateScrollWheelEvent`, campos de rolagem e conversão para `NSEvent`, também despachada ao view do teste. Não é prova de injeção sistêmica em outros aplicativos ou no Dock. [WebKit](https://github.com/WebKit/WebKit/blob/main/Tools/WebKitTestRunner/mac/EventSenderProxy.mm).
 
 A distribuição oficial do código Apple descreve uma estrutura interna de evento HID de swipe com movimento, flavor e progresso fracionário (1.0 = 100%). Essa estrutura HID, isoladamente, não fornece o mapeamento dos campos CG nem a ordem de eventos, roteamento do Dock ou compatibilidade entre releases; o WebKit fornece alguns números acima. O arquivo tem sua própria licença APSL; esta nota apenas descreve os fatos, sem copiar código. [IOHIDEventData.h da Apple](https://github.com/apple-oss-distributions/IOHIDFamily/blob/main/IOHIDFamily/IOHIDEventData.h).
+
+## Pinça do Dock: evidência adicional
+
+O [cabeçalho IOHIDEventTypes de AXElements/mouse, commit 4a8e9f](https://github.com/AXElements/mouse/blob/4a8e9f69754ee5def99b5d9da59e33b3adb6768e/ext/mouse/IOHIDEventTypes.h) enumera movimentos none, horizontal, vertical e scale nessa ordem, correspondendo a 0, 1, 2 e **3**; [CGEventAdditions.h](https://github.com/AXElements/mouse/blob/4a8e9f69754ee5def99b5d9da59e33b3adb6768e/ext/mouse/CGEventAdditions.h) associa pinch a scale. A [interface TouchSimulator.h do Mac Mouse Fix](https://github.com/noah-nuebling/mac-mouse-fix/blob/b25b734ddbba1ad958e9d1dc338276636298e339/Helper/Core/Touch/TouchSimulator.h) também declara o tipo de pinça Dock como 3 para Show Desktop e Launchpad. São evidências sobre nomenclatura e valor; não comprovam que uma sequência sintética funcione no Dock atual. A referência Apple válida para a estrutura é [IOHIDEventData.h](https://github.com/apple-oss-distributions/IOHIDFamily/blob/main/IOHIDFamily/IOHIDEventData.h); o suposto caminho Apple `IOHIDFamily/IOHIDEventTypes.h` retorna 404 e não deve ser usado como fonte.
+
+## Evidência comunicada pela tarefa principal
+
+Atualização de execução da tarefa principal: o
+[run 41302325635](https://github.com/MauricioGoulartt/open-mouse/actions/runs/41302325635),
+SHA `f54475af13841ca3e6ea35e59ae93eed13de3616`, passou 26 testes unitários,
+cinco verificações de protocolo, oito de entrada real e três transições do
+sistema em macOS 26.6.2: Mission Control, Aplicativos e Mesa. A sequência
+DockControl seguida de Gesture foi necessária no cenário que falhava.
+A prova está delimitada à fixture e à versão testada; os próximos itens de
+compatibilidade continuam relevantes. Detalhes e controles positivos em
+[VALIDATION.md](../VALIDATION.md).
+
+- REA 6.8.0 com Node 24.22.1: análise Mach-O e bundle concluída no run 41294912960; REA com Ghidra 12.1.4 no slice x86 thin, run 41296076008, encontrou seis procedimentos TouchSimulator. Análise estática não demonstra comportamento em execução.
+- OpenMouse compilou e estava ativo em macOS 26.6 com Acessibilidade autorizada. No CI macOS 15.8.2, run 41296327186, passaram 23 testes unitários, cinco verificações de wire e sete de input; o pinch acionou três callbacks de `NSMagnificationGestureRecognizer`. Isto demonstra recepção AppKit no cenário testado, não qualifica Spaces, Mission Control ou pinça contínua do Dock.
+
+Esses resultados foram comunicados pela tarefa principal; não foram executados nem inspecionados diretamente nesta pesquisa.
 
 ## Próximas evidências necessárias
 
