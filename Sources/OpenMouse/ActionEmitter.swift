@@ -235,7 +235,11 @@ final class ActionEmitter {
             event.setDoubleValueField(CGEventField(rawValue: 129)!, value: velocity)
             event.setDoubleValueField(CGEventField(rawValue: 130)!, value: velocity)
         }
-        post(event, tap: .cgSessionEventTap)
+        guard let complete = DockEventPacket.augment(event, motion: axis, phase: phase, progress: dockProgress,
+            velocity: phase == 4 || phase == 8 ? (phase == 8 ? 0 : max(-8, min(8, dockVelocity))) : nil) else {
+            onNotice?("O formato de gesto deste macOS não pôde ser preparado com segurança."); return
+        }
+        post(complete, tap: .cgSessionEventTap)
     }
 
     private func media(_ key: Int) {

@@ -23,3 +23,16 @@ Os identificadores e significados de campos privados de eventos foram
 consultados em cabeçalhos de teste do WebKit e em cabeçalhos do SDK da Apple.
 Nenhum arquivo desses projetos foi incorporado ao Open Mouse. Protocolos
 privados podem mudar entre versões do macOS.
+
+## FasterSwiper — mgbowen
+
+`Sources/OpenMouse/DockEventPacket.swift` é uma adaptação em Swift, modificada
+para o Open Mouse, do formato e da serialização implementados em
+`src/gesture-serialization.cc` e descritos em `src/macos-private.h` de
+[FasterSwiper](https://github.com/mgbowen/FasterSwiper), commit
+`3665350bbd05cb7245063ade5143f155d8228d27`.
+
+Esse arquivo mantém a licença Apache-2.0 do componente, reproduzida integralmente
+em `LICENSES/FasterSwiper-Apache-2.0.txt`. As demais implementações próprias
+continuam sob MIT. Nenhuma biblioteca Google, parser JSON de terceiros ou código
+do Touch/Hammerspoon foi incorporado a partir desse projeto.

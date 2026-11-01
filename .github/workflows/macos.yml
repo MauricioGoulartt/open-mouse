@@ -2,7 +2,7 @@ name: macOS
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['Package.swift', 'Sources/**', 'Tests/**', 'Resources/**', 'scripts/package-app.sh', '.github/workflows/macos.yml']
+    paths: ['Package.swift', 'Sources/**', 'Tests/**', 'Resources/**', 'LICENSE', 'LICENSES/**', 'THIRD_PARTY_NOTICES.md', 'scripts/package-app.sh', '.github/workflows/macos.yml']
   pull_request:
   workflow_dispatch:
 permissions:
