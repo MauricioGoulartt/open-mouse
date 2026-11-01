@@ -101,6 +101,9 @@ func runSystemGestureProbe() {
         let item = cases[index]; let before = windows(); let beforeAX = dockAccessibility()
         let beforeFixture = fixtureInfo()
         let beforeElement = elementAtFixtureCenter()
+        guard beforeElement["bundle"] == Bundle.main.bundleIdentifier else {
+            finish("The owned fixture was obscured before \(item.0)"); return
+        }
         emitter.apply([.begin(item.1)])
         for step in 1...12 {
             after(Double(step) * 0.025) { emitter.apply([.change(item.1, ScrollVector(x: item.2.x / 12, y: item.2.y / 12))]) }
@@ -115,7 +118,8 @@ func runSystemGestureProbe() {
             let afterElement = elementAtFixtureCenter()
             // Apps on macOS 26 is a nonactivating Spotlight panel. It does not
             // appear in the Dock AX tree or change frontmostApplication.
-            let apps = beforeElement["bundle"] != "com.apple.Spotlight" && afterElement["bundle"] == "com.apple.Spotlight"
+            let apps = afterElement["bundle"] == "com.apple.Spotlight" &&
+                (afterElement["AXIdentifier"]?.contains("com.apple.spotlight.zkw.") == true)
             let desktop = !fixtureOnScreen() || (beforeElement["bundle"] == Bundle.main.bundleIdentifier && afterElement["bundle"] == "com.apple.finder")
             let changed = item.0 == "vertical-dock" ? missionControl :
                 (item.0 == "four-finger-pinch-apps" ? launchpad || apps : desktop)
@@ -128,6 +132,9 @@ func runSystemGestureProbe() {
                             "missionControlVisible": missionControl, "launchpadVisible": launchpad, "appsVisible": apps,
                             "fixtureHiddenByShowDesktop": desktop, "semanticTransitionObserved": changed])
             emitter.keyboard(code: 53)
+            // The first Escape leaves Apps for Spotlight's search panel. A
+            // second Escape dismisses that nonactivating panel as well.
+            after(0.15) { emitter.keyboard(code: 53) }
             after(0.6) {
                 guard changed else { finish("The \(item.0) gesture did not produce an observable Dock transition"); return }
                 index += 1; window.makeKeyAndOrderFront(nil); app.activate(ignoringOtherApps: true)
@@ -155,13 +162,16 @@ func runSystemGestureProbe() {
     }
     after(0.5) {
         let beforeFixture = fixtureInfo()
-        emitter.perform(MouseAction(.showDesktop))
+        let control = URL(fileURLWithPath: "/System/Applications/Mission Control.app")
+        let configuration = NSWorkspace.OpenConfiguration(); configuration.arguments = ["1"]
+        NSWorkspace.shared.openApplication(at: control, configuration: configuration)
         after(1) {
             capture("show-desktop-positive-control")
             results.append(["case": "show-desktop-positive-control", "beforeFixture": beforeFixture,
                             "afterFixture": fixtureInfo(), "fixtureHiddenByShowDesktop": !fixtureOnScreen(),
+                            "elementAtFixtureCenter": elementAtFixtureCenter(),
                             "afterAX": dockAccessibility().tree])
-            emitter.perform(MouseAction(.showDesktop))
+            NSWorkspace.shared.openApplication(at: control, configuration: configuration)
             after(0.8) {
                 window.makeKeyAndOrderFront(nil); app.activate(ignoringOtherApps: true)
                 after(0.3) { missionControlControl() }
