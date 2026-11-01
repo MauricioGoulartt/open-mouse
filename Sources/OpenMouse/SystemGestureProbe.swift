@@ -20,6 +20,31 @@ func runSystemGestureProbe() {
     let emitter = ActionEmitter()
     var finished = false
     var results: [[String: Any]] = []
+    func dockAccessibility() -> (ids: Set<String>, tree: [[String: String]]) {
+        guard let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first else { return ([], []) }
+        let root = AXUIElementCreateApplication(dock.processIdentifier)
+        var ids = Set<String>(), tree: [[String: String]] = []
+        func attribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {
+            var value: CFTypeRef?
+            return AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success ? value : nil
+        }
+        func visit(_ element: AXUIElement, depth: Int) {
+            guard depth < 7, tree.count < 250 else { return }
+            var row: [String: String] = [:]
+            for key in ["AXRole", "AXSubrole", "AXIdentifier", "AXTitle", "AXDescription"] {
+                if let text = attribute(element, key) as? String { row[key] = text }
+            }
+            if let identifier = row["AXIdentifier"] { ids.insert(identifier.lowercased()) }
+            row["depth"] = String(depth); tree.append(row)
+            for child in attribute(element, "AXChildren") as? [AXUIElement] ?? [] { visit(child, depth: depth + 1) }
+        }
+        visit(root, depth: 0)
+        return (ids, tree)
+    }
+    func fixtureOnScreen() -> Bool {
+        let rows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+        return rows.contains { ($0[kCGWindowNumber as String] as? Int) == window.windowNumber }
+    }
     func windows() -> [[String: Any]] {
         let rows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         return rows.filter { $0[kCGWindowOwnerName as String] as? String == "Dock" }.map {
@@ -43,7 +68,7 @@ func runSystemGestureProbe() {
     var index = 0
     func next() {
         guard index < cases.count else { finish(); return }
-        let item = cases[index]; let before = windows()
+        let item = cases[index]; let before = windows(); let beforeAX = dockAccessibility()
         emitter.apply([.begin(item.1)])
         for step in 1...12 {
             after(Double(step) * 0.025) { emitter.apply([.change(item.1, ScrollVector(x: item.2.x / 12, y: item.2.y / 12))]) }
@@ -51,8 +76,16 @@ func runSystemGestureProbe() {
         after(0.35) { emitter.apply([.end(item.1)]) }
         after(1) {
             let afterWindows = windows()
-            let changed = Set(before.compactMap { $0["number"] as? Int }) != Set(afterWindows.compactMap { $0["number"] as? Int })
-            results.append(["case": item.0, "before": before, "after": afterWindows, "visibleDockWindowsChanged": changed])
+            let afterAX = dockAccessibility()
+            let newIDs = afterAX.ids.subtracting(beforeAX.ids)
+            let missionControl = afterAX.ids.contains("mc") || newIDs.contains { $0.contains("mission") || $0.hasPrefix("mc.") }
+            let launchpad = newIDs.contains { $0.contains("launchpad") || $0 == "lp" || $0.hasPrefix("lp.") }
+            let desktop = !fixtureOnScreen()
+            let changed = item.0 == "vertical-dock" ? missionControl : launchpad || desktop
+            results.append(["case": item.0, "before": before, "after": afterWindows,
+                            "beforeAX": beforeAX.tree, "afterAX": afterAX.tree,
+                            "missionControlVisible": missionControl, "launchpadVisible": launchpad,
+                            "fixtureHiddenByShowDesktop": desktop, "semanticTransitionObserved": changed])
             emitter.keyboard(code: 53)
             after(0.6) {
                 guard changed else { finish("The \(item.0) gesture did not produce an observable Dock transition"); return }

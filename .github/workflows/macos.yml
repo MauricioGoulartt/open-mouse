@@ -5,13 +5,11 @@ on:
     paths: ['Package.swift', 'Sources/**', 'Tests/**', 'Resources/**', 'scripts/package-app.sh', '.github/workflows/macos.yml']
   pull_request:
   workflow_dispatch:
-    inputs:
-      system_gestures:
-        description: 'Verify visible Dock transitions on the isolated hosted desktop'
-        type: boolean
-        default: false
 permissions:
   contents: read
+defaults:
+  run:
+    shell: bash
 concurrency:
   group: macos-${{ github.ref }}
   cancel-in-progress: false
@@ -21,6 +19,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+      - name: Guard native checker exit status through output pipelines
+        run: |
+          if (exit 17) | tee /dev/null; then
+            echo '::error::A failed native checker was masked by its output pipeline'
+            exit 1
+          fi
       - name: Runtime and executor
         run: |
           sw_vers
@@ -42,7 +46,6 @@ jobs:
           OPEN_MOUSE_ISOLATED_TEST: '1'
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --integration-check | tee dist/input-integration-checks.txt'
       - name: Verify visible system gestures on the isolated desktop
-        if: github.event_name == 'workflow_dispatch' && inputs.system_gestures
         env:
           OPEN_MOUSE_ISOLATED_TEST: '1'
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --system-gesture-check | tee dist/system-gesture-checks.json'
