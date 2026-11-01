@@ -65,6 +65,26 @@ func runSystemGestureProbe() {
         }
         return result
     }
+    func visibleAppsGridIdentifier() -> String? {
+        guard let spotlight = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Spotlight").first else { return nil }
+        var visited = 0
+        func find(_ element: AXUIElement, depth: Int) -> String? {
+            guard depth < 12, visited < 500 else { return nil }; visited += 1
+            var value: CFTypeRef?
+            if AXUIElementCopyAttributeValue(element, "AXIdentifier" as CFString, &value) == .success,
+               let identifier = value as? String, identifier.contains("com.apple.spotlight.zkw.alphabetic") {
+                return identifier
+            }
+            value = nil
+            if AXUIElementCopyAttributeValue(element, "AXChildren" as CFString, &value) == .success {
+                for child in value as? [AXUIElement] ?? [] {
+                    if let identifier = find(child, depth: depth + 1) { return identifier }
+                }
+            }
+            return nil
+        }
+        return find(AXUIElementCreateApplication(spotlight.processIdentifier), depth: 0)
+    }
     func capture(_ name: String) {
         // This command is guarded above and runs only on the disposable CI
         // desktop containing this fixture, never on the user's desktop.
@@ -118,8 +138,11 @@ func runSystemGestureProbe() {
             let afterElement = elementAtFixtureCenter()
             // Apps on macOS 26 is a nonactivating Spotlight panel. It does not
             // appear in the Dock AX tree or change frontmostApplication.
-            let apps = afterElement["bundle"] == "com.apple.Spotlight" &&
-                (afterElement["AXIdentifier"]?.contains("com.apple.spotlight.zkw.") == true)
+            // The center can land between cells after indexing changes their
+            // layout. Require the visible Spotlight surface AND its Apps grid,
+            // rather than depending on a particular cell's position.
+            let appsGrid = afterElement["bundle"] == "com.apple.Spotlight" ? visibleAppsGridIdentifier() : nil
+            let apps = appsGrid != nil
             let desktop = !fixtureOnScreen() || (beforeElement["bundle"] == Bundle.main.bundleIdentifier && afterElement["bundle"] == "com.apple.finder")
             let changed = item.0 == "vertical-dock" ? missionControl :
                 (item.0 == "four-finger-pinch-apps" ? launchpad || apps : desktop)
@@ -128,6 +151,7 @@ func runSystemGestureProbe() {
                             "beforeAX": beforeAX.tree, "afterAX": afterAX.tree,
                             "beforeFixture": beforeFixture, "afterFixture": fixtureInfo(),
                             "beforeElement": beforeElement, "afterElement": afterElement,
+                            "appsGridIdentifier": appsGrid ?? "",
                             "frontmostBundle": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "",
                             "missionControlVisible": missionControl, "launchpadVisible": launchpad, "appsVisible": apps,
                             "fixtureHiddenByShowDesktop": desktop, "semanticTransitionObserved": changed])
