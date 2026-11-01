@@ -71,7 +71,13 @@ func renderPreviews(to directory: URL) {
             view.cacheDisplay(in: view.bounds, to: bitmap)
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                guard let data = bitmap.representation(using: .png, properties: [:]) else { exit(1) }
+                let flattened = NSImage(size: view.bounds.size)
+                flattened.lockFocus()
+                NSColor.windowBackgroundColor.setFill(); view.bounds.fill()
+                bitmap.draw(in: view.bounds)
+                flattened.unlockFocus()
+                guard let tiff = flattened.tiffRepresentation, let output = NSBitmapImageRep(data: tiff),
+                      let data = output.representation(using: .png, properties: [:]) else { exit(1) }
                 let target = directory.appendingPathComponent("\(index)-\(section).png")
                 try data.write(to: target); print(target.path)
             } catch { fputs("\(error)\n", stderr); exit(1) }

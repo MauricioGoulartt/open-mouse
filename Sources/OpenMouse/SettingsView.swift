@@ -85,6 +85,9 @@ struct SettingsView: View {
                 if !store.accessibilityGranted {
                     Button("Autorizar Acessibilidade…") { store.openAccessibilitySettings() }
                 }
+                if store.configuration.enabled && !store.engine.isRunning && store.accessibilityGranted {
+                    Button("Tentar ativar novamente") { store.engine.configure(store.configuration) }
+                }
             } footer: {
                 Text("A janela pode ser fechada: o processamento continua na barra de menus. Encerre o outro utilitário de mouse antes de ativar este.")
             }
@@ -112,19 +115,19 @@ struct SettingsView: View {
                 }.pickerStyle(.segmented)
                 HStack {
                     Text("Velocidade")
-                    Slider(value: scrollBinding(\.speed), in: 0.1...5, step: 0.05)
+                    Slider(value: scrollBinding(\.speed), in: 0.1...5)
                     Text(String(format: "%.2f×", store.configuration.scroll.speed)).monospacedDigit().frame(width: 50)
                 }
                 HStack {
                     Text("Aceleração")
-                    Slider(value: scrollBinding(\.acceleration), in: 0...2, step: 0.05)
+                    Slider(value: scrollBinding(\.acceleration), in: 0...2)
                     Text(String(format: "%.2f", store.configuration.scroll.acceleration)).monospacedDigit().frame(width: 50)
                 }
             }
             Section("Direção") {
                 Toggle("Inverter rolagem vertical", isOn: scrollBinding(\.inverted))
                 Toggle("Inverter rolagem horizontal", isOn: scrollBinding(\.horizontalInverted))
-                Text("Os eventos contínuos de trackpads passam sem alteração. Mouses de alta resolução que emitem eventos contínuos também passam sem alteração nesta versão.")
+                Text("Trackpads e fontes contínuas não identificadas passam sem alteração. Mouses de alta resolução são tratados quando o macOS permite identificar o dispositivo.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Combinações com a roda") {

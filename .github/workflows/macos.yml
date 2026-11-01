@@ -2,6 +2,7 @@ name: macOS
 on:
   push:
     branches: [main, 'codex/**']
+    paths: ['Package.swift', 'Sources/**', 'Tests/**', 'Resources/**', 'scripts/package-app.sh', '.github/workflows/macos.yml']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -31,6 +32,10 @@ jobs:
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --diagnose | tee dist/diagnostics.json'
       - name: Native event protocol checks without posting
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --check-native-events | tee dist/native-event-checks.txt'
+      - name: Real input pipeline on the isolated hosted desktop
+        env:
+          OPEN_MOUSE_ISOLATED_TEST: '1'
+        run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --integration-check | tee dist/input-integration-checks.txt'
       - name: Render native settings without displaying a window
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --render-preview "$PWD/dist/previews"'
       - uses: actions/upload-artifact@v7
@@ -40,5 +45,6 @@ jobs:
             dist/OpenMouse-macOS.zip
             dist/diagnostics.json
             dist/native-event-checks.txt
+            dist/input-integration-checks.txt
             dist/previews/
           retention-days: 14

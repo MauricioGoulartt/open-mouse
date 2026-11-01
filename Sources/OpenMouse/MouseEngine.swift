@@ -13,6 +13,7 @@ final class MouseEngine {
     private var physics = ScrollPhysics()
     private var buttons = ButtonEngine(configuration: Configuration())
     private let emitter = ActionEmitter()
+    private let devices = DeviceClassifier()
     private var lastFrame = ProcessInfo.processInfo.systemUptime
     private var smoothStarted = false
     private var frontmostObserver: NSObjectProtocol?
@@ -44,6 +45,9 @@ final class MouseEngine {
 
     func start() {
         guard tap == nil else { return }
+        if !NSRunningApplication.runningApplications(withBundleIdentifier: "com.nuebling.mac-mouse-fix.helper").isEmpty {
+            onStatus?("O Mac Mouse Fix está ativo. Desative-o antes de ativar o Open Mouse para evitar processamento duplicado."); return
+        }
         guard AXIsProcessTrusted() else { onStatus?("Autorize o Open Mouse em Acessibilidade para ativar."); return }
         let types: [CGEventType] = [.scrollWheel, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
             .otherMouseDown, .otherMouseUp, .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
@@ -58,6 +62,7 @@ final class MouseEngine {
             onStatus?("O macOS recusou a captura. Verifique Acessibilidade e reative o Open Mouse."); return
         }
         tap = port
+        devices.start()
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         CGEvent.tapEnable(tap: port, enable: true)
@@ -72,6 +77,7 @@ final class MouseEngine {
         if let port = tap { CGEvent.tapEnable(tap: port, enable: false); CFMachPortInvalidate(port) }
         if let source = runLoopSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil; runLoopSource = nil; onStatus?("Desativado")
+        devices.stop()
     }
 
     private func cancelGestures() {
@@ -112,10 +118,12 @@ final class MouseEngine {
             let result = buttons.move(delta); emitter.apply(result.effects)
             return result.suppress ? nil : Unmanaged.passUnretained(event)
         case .scrollWheel:
-            // Continuous hardware events belong to trackpads/high-resolution devices.
-            // Pass through untouched rather than accidentally changing trackpad behavior.
-            guard event.getIntegerValueField(.scrollWheelEventIsContinuous) == 0 else { return Unmanaged.passUnretained(event) }
+            guard devices.isPhysicalMouse(event) else { return Unmanaged.passUnretained(event) }
             var delta = ScrollVector(x: event.getDoubleValueField(.scrollWheelEventDeltaAxis2), y: event.getDoubleValueField(.scrollWheelEventDeltaAxis1))
+            if event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 {
+                delta = ScrollVector(x: event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2) / 16,
+                                     y: event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1) / 16)
+            }
             let result = buttons.wheel(delta); emitter.apply(result.effects)
             if result.suppress { return nil }
             guard configuration.scrollEnabled else { return Unmanaged.passUnretained(event) }
@@ -127,15 +135,19 @@ final class MouseEngine {
             if settings.shiftHorizontal && modifiers.contains(.shift) { delta = ScrollVector(x: delta.y, y: delta.x) }
             let precise = settings.optionPrecise && modifiers.contains(.option)
             if settings.smoothing == .off {
-                event.setDoubleValueField(.scrollWheelEventDeltaAxis1, value: delta.y * settings.speed * (settings.inverted ? -1 : 1) * (precise ? 0.25 : 1))
-                event.setDoubleValueField(.scrollWheelEventDeltaAxis2, value: delta.x * settings.speed * (settings.horizontalInverted ? -1 : 1) * (precise ? 0.25 : 1))
                 // Update all representations, including apps reading fixed-point/pixel fields.
                 let signY: Double = settings.inverted ? -1 : 1, signX: Double = settings.horizontalInverted ? -1 : 1
                 let factor = settings.speed * (precise ? 0.25 : 1)
-                let originalY = event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1)
-                let originalX = event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2)
-                event.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1, value: (settings.shiftHorizontal && modifiers.contains(.shift) ? originalX : originalY) * factor * signY)
-                event.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2, value: (settings.shiftHorizontal && modifiers.contains(.shift) ? originalY : originalX) * factor * signX)
+                let pairs: [(CGEventField, CGEventField)] = [(.scrollWheelEventDeltaAxis1, .scrollWheelEventDeltaAxis2),
+                    (.scrollWheelEventFixedPtDeltaAxis1, .scrollWheelEventFixedPtDeltaAxis2),
+                    (.scrollWheelEventPointDeltaAxis1, .scrollWheelEventPointDeltaAxis2)]
+                let values = pairs.map { (event.getDoubleValueField($0.0), event.getDoubleValueField($0.1)) }
+                for (index, pair) in pairs.enumerated() {
+                    let original = values[index]
+                    let horizontal = settings.shiftHorizontal && modifiers.contains(.shift)
+                    event.setDoubleValueField(pair.0, value: (horizontal ? original.1 : original.0) * factor * signY)
+                    event.setDoubleValueField(pair.1, value: (horizontal ? original.0 : original.1) * factor * signX)
+                }
                 if settings.shiftHorizontal && modifiers.contains(.shift) { event.flags.remove(.maskShift) }
                 return Unmanaged.passUnretained(event)
             }
