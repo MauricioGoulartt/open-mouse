@@ -219,8 +219,10 @@ final class ActionEmitter {
     /// Typed field 135 carries the signed Float32 bit pattern, not an integer
     /// conversion of the progress. See THIRD_PARTY_NOTICES.md.
     private func dockSwipe(phase: Int64) {
-        guard let axis = dockAxis, let event = CGEvent(source: source) else { return }
-        event.setIntegerValueField(CGEventField(rawValue: 55)!, value: 30)
+        guard let axis = dockAxis, let event = CGEvent(source: source), let type = CGEventType(rawValue: 30) else { return }
+        // The public type setter writes the dispatch header. Merely creating an
+        // integer payload at private field 55 leaves this a null CGEvent.
+        event.type = type
         event.setIntegerValueField(CGEventField(rawValue: 110)!, value: 23)
         event.setIntegerValueField(CGEventField(rawValue: 132)!, value: phase)
         event.setIntegerValueField(CGEventField(rawValue: 123)!, value: axis)
