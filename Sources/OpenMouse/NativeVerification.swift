@@ -30,6 +30,13 @@ func verifyNativeEvents() throws -> [String] {
     events.removeAll()
     let drag = MouseAction(.spacesAndMissionControl)
     emitter.apply([.begin(drag), .change(drag, ScrollVector(x: 100)), .change(drag, ScrollVector(x: -50)), .cancel(drag)])
+    try require(events.count == 6, "Every Dock control needs its companion gesture event")
+    for index in stride(from: 0, to: events.count, by: 2) {
+        try require(events[index].0.type.rawValue == 30 && events[index + 1].0.type.rawValue == 29,
+                    "Dock control/companion event order is invalid")
+        try require(events[index + 1].1 == .cgSessionEventTap, "Dock companion must use the same session tap")
+    }
+    events = events.enumerated().filter { $0.offset.isMultiple(of: 2) }.map(\.element)
     try require(events.count == 3, "DockSwipe must begin with its first movement, change once, then cancel")
     try require(events.allSatisfy { $0.0.type.rawValue == 30 }, "DockSwipe was not dispatched as a real DockControl CGEvent")
     try require(events.allSatisfy { DockEventPacket.payload(in: $0.0)?.count == 68 }, "DockSwipe lost its native HID collection")
@@ -44,6 +51,9 @@ func verifyNativeEvents() throws -> [String] {
     events.removeAll()
     let pinchDock = MouseAction(.desktopAndLaunchpad)
     emitter.apply([.begin(pinchDock), .change(pinchDock, ScrollVector(y: 3)), .end(pinchDock)])
+    try require(events.count == 4 && events[1].0.type.rawValue == 29 && events[3].0.type.rawValue == 29,
+                "Four-finger pinch needs a companion for both begin and end")
+    events = events.enumerated().filter { $0.offset.isMultiple(of: 2) }.map(\.element)
     try require(events.count == 2 && integer(0, 123) == 3, "A single-motion Dock pinch must begin with motion and end")
     try require(events.allSatisfy { $0.0.type.rawValue == 30 }, "Four-finger pinch was not dispatched as a real DockControl CGEvent")
     try require(DockEventPacket.payload(in: events[1].0)?.count == 96, "Ended Dock pinch must carry a velocity child even when velocity is zero")

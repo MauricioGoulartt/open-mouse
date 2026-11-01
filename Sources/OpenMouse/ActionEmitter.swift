@@ -250,6 +250,12 @@ final class ActionEmitter {
             onNotice?("O formato de gesto deste macOS não pôde ser preparado com segurança."); return
         }
         post(complete, tap: .cgSessionEventTap)
+        // The Dock consumes the control together with a companion gesture
+        // event. This handshake is documented by InstantSpaceSwitcher (MIT).
+        if let companion = CGEvent(source: source), let gestureType = CGEventType(rawValue: 29) {
+            companion.type = gestureType
+            post(companion, tap: .cgSessionEventTap)
+        }
     }
 
     private func media(_ key: Int) {

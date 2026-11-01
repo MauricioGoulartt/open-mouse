@@ -4,6 +4,12 @@ O Open Mouse é uma implementação própria. Não inclui código, recursos visu
 configurações ou sistemas de licença do Mac Mouse Fix. Esse aplicativo foi usado
 como referência de comportamento, conforme a pesquisa em `docs/research/`.
 
+O pareamento de eventos DockControl/Gesture também foi conferido no projeto
+[InstantSpaceSwitcher](https://github.com/jurplel/InstantSpaceSwitcher), sob MIT,
+commit `f7616e42651b1ed8d81625e3640eceed6efa8018`, `Sources/ISS/ISS.c`.
+O protocolo exige que cada evento de controle seja seguido por seu evento
+genérico de gesto; esta informação foi reimplementada com as APIs Core Graphics.
+
 ## macos-trackpad-companion — Scott Lamb
 
 A construção dos eventos DockSwipe em `Sources/OpenMouse/ActionEmitter.swift`
