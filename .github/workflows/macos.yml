@@ -61,5 +61,6 @@ jobs:
             dist/native-event-checks.txt
             dist/input-integration-checks.txt
             dist/system-gesture-checks.json
+            dist/system-probe/
             dist/previews/
           retention-days: 14

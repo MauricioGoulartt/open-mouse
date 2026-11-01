@@ -45,6 +45,19 @@ func runSystemGestureProbe() {
         let rows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         return rows.contains { ($0[kCGWindowNumber as String] as? Int) == window.windowNumber }
     }
+    func fixtureInfo() -> [[String: Any]] {
+        let rows = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID) as? [[String: Any]] ?? []
+        return rows.filter { ($0[kCGWindowNumber as String] as? Int) == window.windowNumber }
+    }
+    func capture(_ name: String) {
+        // This command is guarded above and runs only on the disposable CI
+        // desktop containing this fixture, never on the user's desktop.
+        let directory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("dist/system-probe")
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = ["-x", directory.appendingPathComponent("\(name).png").path]
+        try? process.run(); process.waitUntilExit()
+    }
     func windows() -> [[String: Any]] {
         let rows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         return rows.filter { $0[kCGWindowOwnerName as String] as? String == "Dock" }.map {
@@ -69,6 +82,7 @@ func runSystemGestureProbe() {
     func next() {
         guard index < cases.count else { finish(); return }
         let item = cases[index]; let before = windows(); let beforeAX = dockAccessibility()
+        let beforeFixture = fixtureInfo()
         emitter.apply([.begin(item.1)])
         for step in 1...12 {
             after(Double(step) * 0.025) { emitter.apply([.change(item.1, ScrollVector(x: item.2.x / 12, y: item.2.y / 12))]) }
@@ -82,8 +96,11 @@ func runSystemGestureProbe() {
             let launchpad = newIDs.contains { $0.contains("launchpad") || $0 == "lp" || $0.hasPrefix("lp.") }
             let desktop = !fixtureOnScreen()
             let changed = item.0 == "vertical-dock" ? missionControl : launchpad || desktop
+            capture(item.0)
             results.append(["case": item.0, "before": before, "after": afterWindows,
                             "beforeAX": beforeAX.tree, "afterAX": afterAX.tree,
+                            "beforeFixture": beforeFixture, "afterFixture": fixtureInfo(),
+                            "frontmostBundle": NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "",
                             "missionControlVisible": missionControl, "launchpadVisible": launchpad,
                             "fixtureHiddenByShowDesktop": desktop, "semanticTransitionObserved": changed])
             emitter.keyboard(code: 53)
@@ -96,7 +113,7 @@ func runSystemGestureProbe() {
     }
     // A positive control separates unsupported/misobserved hosted desktops from
     // a failed synthetic gesture. This launches Apple's own Mission Control UI.
-    after(0.5) {
+    func missionControlControl() {
         let control = URL(fileURLWithPath: "/System/Applications/Mission Control.app")
         guard FileManager.default.fileExists(atPath: control.path) else { finish("Mission Control positive-control application is absent"); return }
         NSWorkspace.shared.openApplication(at: control, configuration: .init())
@@ -109,6 +126,21 @@ func runSystemGestureProbe() {
                 guard visible else { finish("The hosted desktop/observer did not detect Apple's own Mission Control UI"); return }
                 window.makeKeyAndOrderFront(nil); app.activate(ignoringOtherApps: true)
                 after(0.3) { next() }
+            }
+        }
+    }
+    after(0.5) {
+        let beforeFixture = fixtureInfo()
+        emitter.perform(MouseAction(.showDesktop))
+        after(1) {
+            capture("show-desktop-positive-control")
+            results.append(["case": "show-desktop-positive-control", "beforeFixture": beforeFixture,
+                            "afterFixture": fixtureInfo(), "fixtureHiddenByShowDesktop": !fixtureOnScreen(),
+                            "afterAX": dockAccessibility().tree])
+            emitter.perform(MouseAction(.showDesktop))
+            after(0.8) {
+                window.makeKeyAndOrderFront(nil); app.activate(ignoringOtherApps: true)
+                after(0.3) { missionControlControl() }
             }
         }
     }
