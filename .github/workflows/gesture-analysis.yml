@@ -53,6 +53,9 @@ jobs:
           npx --yes rea-agents@6.8.0 inspect-native-dispatch-metadata "$target" --provider ghidra --json > artifacts/gesture-investigation/dispatch.json
           npx --yes rea-agents@6.8.0 search "$target" TouchSimulator --kind procedures --provider ghidra --json > artifacts/gesture-investigation/gesture-procedures.json
           npx --yes rea-agents@6.8.0 search "$target" pinch --kind procedures --provider ghidra --json > artifacts/gesture-investigation/pinch-procedures.json
+          # Exact entries recovered for the checksum-verified 3.1.0 x86_64 image.
+          npx --yes rea-agents@6.8.0 decompile "$target" --procedure=0x10000cc94 --provider ghidra --json > artifacts/gesture-investigation/dock-wire-protocol.json
+          npx --yes rea-agents@6.8.0 decompile "$target" --procedure=0x10000cbbe --provider ghidra --json > artifacts/gesture-investigation/magnification-wire-protocol.json
       - uses: actions/upload-artifact@v7
         if: always()
         with:
