@@ -132,7 +132,9 @@ script ou senha armazenada.
 No teste visual nativo foi criado um mapeamento temporário para o botão 32,
 salvo e removido. Os seis mapeamentos padrão foram preservados, assim como
 os ajustes do Mac Mouse Fix. O mouse presente é um Logitech MX Master 3S;
-identificar o dispositivo não demonstra que seus botões físicos foram exercitados.
+após a instalação final o usuário confirmou que a roda e os botões laterais
+funcionam. Essa confirmação inicial não substitui a qualificação de cada gesto
+em aplicativos externos e das combinações com trackpad.
 
 A atualização final foi feita pela compilação 22 do candidato acima, após
 encerrar a instância anterior normalmente pelo Monitor de Atividade. O pacote
@@ -147,6 +149,10 @@ A consulta de versões foi exercitada com a prévia publicada: o canal beta
 identificou a versão instalada como a mais recente; a opção foi restaurada para
 desativada. O diagnóstico da aplicação lançada pelo macOS confirmou build 22,
 o SHA do candidato e Acessibilidade autorizada em macOS 26.6 (25G72).
+Uma consulta somente leitura com `CGGetEventTapList` confirmou o tap do Open
+Mouse habilitado e os taps do BetterMouse, que permanecia em segundo plano,
+desabilitados. Nenhum ajuste do BetterMouse foi alterado; o Helper do Mac Mouse
+Fix não estava em execução.
 
 O Mac estava ocupado com CI compartilhado. Foram feitas leituras, edições e
 interações pontuais de interface; builds, suítes e análise pesada ficaram nos

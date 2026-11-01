@@ -30,4 +30,5 @@ real e três transições do sistema passaram nos runners hospedados. Os gestos
 têm um gate próprio e controles positivos; os resultados e SHAs estão em
 [VALIDATION.md](VALIDATION.md). O Open Mouse foi instalado e ativado no Mac com
 Acessibilidade, com Mac Mouse Fix desativado pela interface. Os testes sintéticos
-no CI não equivalem a uma bateria com os botões físicos do MX Master 3S.
+no CI não equivalem a uma bateria com os botões físicos do MX Master 3S; após a
+instalação final, o usuário confirmou o funcionamento da roda e dos botões laterais.
