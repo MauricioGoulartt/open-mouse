@@ -15,6 +15,9 @@ final class ActionEmitter {
     private var dockProgress: Double = 0
     private var dockVelocity: Double = 0
     private var lastGestureTime: Double = 0
+    private var dragVelocity = ScrollVector.zero
+    private var momentum = ScrollMomentum()
+    private var momentumStarted = false
     private let eventSink: ((CGEvent, CGEventTapLocation) -> Void)?
 
     init(eventSink: ((CGEvent, CGEventTapLocation) -> Void)? = nil) { self.eventSink = eventSink }
@@ -114,12 +117,15 @@ final class ActionEmitter {
     }
 
     func reset() {
+        cancelMomentum()
         if scrollStarted { scroll(.zero, phase: 4) }
         continuous = .zero; scrollFraction = .zero; scrollStarted = false
     }
 
     private func begin(_ action: MouseAction) {
+        cancelMomentum()
         continuous = .zero; dockAxis = nil; dockProgress = 0; dockVelocity = 0
+        dragVelocity = .zero
         lastGestureTime = ProcessInfo.processInfo.systemUptime
         switch action.kind {
         case .zoom: gesture(hidType: 61, phase: 0); gesture(hidType: 8, phase: 1, valueField: 113)
@@ -137,7 +143,13 @@ final class ActionEmitter {
         switch action.kind {
         case .zoom: gesture(hidType: 8, phase: 2, valueField: 113, value: -delta.y * 0.008)
         case .rotate: gesture(hidType: 5, phase: 2, valueField: 114, value: delta.y * 0.8)
-        case .scrollAndNavigate: scroll(ScrollVector(x: -delta.x, y: -delta.y), phase: 2)
+        case .scrollAndNavigate:
+            let now = ProcessInfo.processInfo.systemUptime
+            let dt = max(0.001, now - lastGestureTime)
+            dragVelocity.x = dragVelocity.x * 0.65 - delta.x / dt * 0.35
+            dragVelocity.y = dragVelocity.y * 0.65 - delta.y / dt * 0.35
+            lastGestureTime = now
+            scroll(ScrollVector(x: -delta.x, y: -delta.y), phase: 2)
         case .horizontalScroll: scroll(ScrollVector(x: delta.y != 0 ? delta.y * 16 : delta.x), phase: 2)
         case .fastScroll: scroll(ScrollVector(x: delta.x * 60, y: delta.y * 60), phase: 2)
         case .preciseScroll: scroll(ScrollVector(x: delta.x * 4, y: delta.y * 4), phase: 2)
@@ -170,11 +182,26 @@ final class ActionEmitter {
         case .rotate: gesture(hidType: 5, phase: phase, valueField: 114); gesture(hidType: 62, phase: 0)
         case .scrollAndNavigate, .horizontalScroll, .fastScroll, .preciseScroll:
             scroll(.zero, phase: phase); scrollStarted = false
+            if action.kind == .scrollAndNavigate && !cancelled && ProcessInfo.processInfo.systemUptime - lastGestureTime < 0.12 {
+                momentum.start(velocity: dragVelocity)
+            }
         case .spacesAndMissionControl, .desktopAndLaunchpad:
             if dockAxis != nil { dockSwipe(phase: phase) }; dockAxis = nil
         default: break
         }
         continuous = .zero
+    }
+
+    func tick(seconds: Double) {
+        if momentum.isActive {
+            scroll(momentum.step(seconds: seconds), momentum: momentumStarted ? 2 : 1)
+            momentumStarted = true
+        } else if momentumStarted { scroll(.zero, momentum: 3); momentumStarted = false }
+    }
+
+    func cancelMomentum() {
+        momentum.cancel()
+        if momentumStarted { scroll(.zero, momentum: 3); momentumStarted = false }
     }
 
     private func gesture(hidType: Int64, phase: Int64, valueField: UInt32? = nil, value: Double = 0) {

@@ -25,7 +25,7 @@ final class MouseEngine {
         emitter.onNotice = { [weak self] in self?.onStatus?($0) }
         frontmostObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
-        ) { [weak self] _ in self?.cancelGestures() }
+        ) { [weak self] _ in self?.cancelScrolling() }
     }
 
     deinit {
@@ -81,10 +81,13 @@ final class MouseEngine {
     }
 
     private func cancelGestures() {
-        emitter.apply(buttons.cancel()); physics.cancel()
+        emitter.apply(buttons.cancel()); cancelScrolling(); emitter.reset()
+    }
+
+    private func cancelScrolling() {
+        physics.cancel(); emitter.cancelMomentum()
         if smoothStarted { emitter.scroll(.zero, phase: 4); smoothStarted = false }
         if scrollZoomActive { emitter.apply([.end(MouseAction(.zoom))]); scrollZoomActive = false }
-        emitter.reset()
     }
 
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -99,6 +102,7 @@ final class MouseEngine {
         let modifiers = Modifiers(rawValue: event.flags.rawValue).intersection(.supported)
         switch type {
         case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            emitter.cancelMomentum()
             let button = Int(event.getIntegerValueField(.mouseEventButtonNumber)) + 1
             if captureNextButton, button >= 3 {
                 captureNextButton = false
@@ -119,6 +123,7 @@ final class MouseEngine {
             return result.suppress ? nil : Unmanaged.passUnretained(event)
         case .scrollWheel:
             guard devices.isPhysicalMouse(event) else { return Unmanaged.passUnretained(event) }
+            emitter.cancelMomentum()
             var delta = ScrollVector(x: event.getDoubleValueField(.scrollWheelEventDeltaAxis2), y: event.getDoubleValueField(.scrollWheelEventDeltaAxis1))
             if event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 {
                 delta = ScrollVector(x: event.getDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2) / 16,
@@ -159,6 +164,7 @@ final class MouseEngine {
 
     private func tick() {
         let now = ProcessInfo.processInfo.systemUptime
+        emitter.tick(seconds: now - lastFrame)
         emitter.apply(buttons.tick(time: now))
         if physics.isActive {
             let delta = physics.step(seconds: now - lastFrame, smoothing: configuration.scroll.smoothing)

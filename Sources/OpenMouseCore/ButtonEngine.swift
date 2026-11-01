@@ -55,6 +55,10 @@ public struct ButtonEngine {
             } else { effects += clickEffects(button: button, pending: previous) }
         }
         presses[button] = Press(time: time, modifiers: modifiers, rules: rules, count: count)
+        // A button used as a chord modifier must not also fire its own click.
+        for modifier in Set(rules.values.flatMap { $0.heldButtons }) {
+            if var press = presses[modifier] { press.consumed = true; presses[modifier] = press }
+        }
         return InputDecision(suppress: true, effects: effects)
     }
 
@@ -76,13 +80,21 @@ public struct ButtonEngine {
     public mutating func move(_ delta: ScrollVector) -> InputDecision {
         var effects: [EngineEffect] = []
         var suppress = false
-        for button in presses.keys.sorted() {
+        let candidates = presses.keys.filter { presses[$0]?.rules[.drag] != nil }
+        guard let button = candidates.max(by: { presses[$0]!.time < presses[$1]!.time }) else { return InputDecision() }
+        for button in [button] {
             guard var press = presses[button], !press.consumed || press.active != nil else { continue }
             if let active = press.active, press.activeTrigger == .drag {
                 effects.append(.change(active, delta)); suppress = true
             } else if press.active == nil, let rule = press.rules[.drag] {
                 press.distance.x += delta.x; press.distance.y += delta.y
                 if press.distance.magnitude >= configuration.dragThreshold {
+                    for other in presses.keys.sorted() where other != button {
+                        if var old = presses[other], let active = old.active {
+                            effects.append(.cancel(active)); old.active = nil; old.activeTrigger = nil
+                            old.consumed = true; presses[other] = old
+                        }
+                    }
                     press.active = rule.action; press.activeTrigger = .drag; press.consumed = true
                     effects += [.begin(rule.action), .change(rule.action, press.distance)]
                     suppress = true

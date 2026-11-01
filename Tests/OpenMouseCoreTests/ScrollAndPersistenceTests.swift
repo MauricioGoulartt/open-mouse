@@ -2,6 +2,20 @@ import XCTest
 @testable import OpenMouseCore
 
 final class ScrollAndPersistenceTests: XCTestCase {
+    func testReleaseMomentumIsFrameRateIndependentAndCancels() {
+        var totals: [Double] = []
+        for hz in [60.0, 120.0] {
+            var momentum = ScrollMomentum(); momentum.start(velocity: ScrollVector(y: 400))
+            var total: Double = 0
+            for _ in 0..<Int(hz * 2) { total += momentum.step(seconds: 1 / hz).y }
+            XCTAssertFalse(momentum.isActive)
+            XCTAssertGreaterThan(total, 70); XCTAssertLessThan(total, 72)
+            totals.append(total)
+            momentum.start(velocity: ScrollVector(y: 400)); momentum.cancel()
+            XCTAssertEqual(momentum.step(seconds: 0.02), .zero)
+        }
+        XCTAssertEqual(totals[0], totals[1], accuracy: 0.2)
+    }
     private func drain(_ physics: inout ScrollPhysics, smoothing: Smoothing, hz: Double) -> ScrollVector {
         var sum = ScrollVector.zero
         for _ in 0..<Int(hz * 5) {

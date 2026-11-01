@@ -101,4 +101,22 @@ final class ButtonEngineTests: XCTestCase {
         XCTAssertEqual(effects, [.action(MouseAction(.lookup))])
         XCTAssertTrue(value.tick(time: 2).isEmpty)
     }
+    func testChordModifierDoesNotAlsoFireItsOwnClick() {
+        var value = engine([Mapping(button: 4, trigger: .click, action: MouseAction(.lookup)),
+                            Mapping(button: 5, trigger: .click, action: MouseAction(.forward), heldButtons: [4])])
+        _ = value.down(button: 4, modifiers: [], time: 0)
+        _ = value.down(button: 5, modifiers: [], time: 0.1)
+        XCTAssertEqual(value.up(button: 5, time: 0.2).effects, [.action(MouseAction(.forward))])
+        XCTAssertTrue(value.up(button: 4, time: 0.3).effects.isEmpty)
+    }
+    func testMostRecentDragCancelsOldGestureInsteadOfDrivingBoth() {
+        let first = MouseAction(.spacesAndMissionControl), second = MouseAction(.scrollAndNavigate)
+        var value = engine([Mapping(button: 4, trigger: .drag, action: first), Mapping(button: 5, trigger: .drag, action: second)])
+        _ = value.down(button: 4, modifiers: [], time: 0)
+        _ = value.move(ScrollVector(x: 10))
+        _ = value.down(button: 5, modifiers: [], time: 0.1)
+        XCTAssertEqual(value.move(ScrollVector(y: 10)).effects,
+                       [.cancel(first), .begin(second), .change(second, ScrollVector(y: 10))])
+        XCTAssertTrue(value.up(button: 4, time: 0.2).effects.isEmpty)
+    }
 }
