@@ -5,6 +5,11 @@ on:
     paths: ['Package.swift', 'Sources/**', 'Tests/**', 'Resources/**', 'scripts/package-app.sh', '.github/workflows/macos.yml']
   pull_request:
   workflow_dispatch:
+    inputs:
+      system_gestures:
+        description: 'Verify visible Dock transitions on the isolated hosted desktop'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -36,9 +41,15 @@ jobs:
         env:
           OPEN_MOUSE_ISOLATED_TEST: '1'
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --integration-check | tee dist/input-integration-checks.txt'
+      - name: Verify visible system gestures on the isolated desktop
+        if: github.event_name == 'workflow_dispatch' && inputs.system_gestures
+        env:
+          OPEN_MOUSE_ISOLATED_TEST: '1'
+        run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --system-gesture-check | tee dist/system-gesture-checks.json'
       - name: Render native settings without displaying a window
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --render-preview "$PWD/dist/previews"'
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: OpenMouse-macOS
           path: |
@@ -46,5 +57,6 @@ jobs:
             dist/diagnostics.json
             dist/native-event-checks.txt
             dist/input-integration-checks.txt
+            dist/system-gesture-checks.json
             dist/previews/
           retention-days: 14

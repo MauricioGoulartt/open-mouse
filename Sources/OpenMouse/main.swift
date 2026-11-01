@@ -66,7 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func applicationWillTerminate(_ notification: Notification) { store?.engine.stop() }
 }
 
-if CommandLine.arguments.contains("--integration-check") {
+if CommandLine.arguments.contains("--system-gesture-check") {
+    runSystemGestureProbe()
+} else if CommandLine.arguments.contains("--integration-check") {
     runInputIntegration()
 } else if let index = CommandLine.arguments.firstIndex(of: "--render-preview"), CommandLine.arguments.count > index + 1 {
     renderPreviews(to: URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true))

@@ -201,7 +201,8 @@ struct SettingsView: View {
     }
 
     private var about: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        ScrollView {
+        VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "computermouse.fill").font(.system(size: 54)).foregroundStyle(.tint)
             Text("Open Mouse").font(.largeTitle.bold())
             Text("0.1.0 · desenvolvimento").foregroundStyle(.secondary)
@@ -221,7 +222,8 @@ struct SettingsView: View {
             Text("Novas versões são abertas no GitHub para download. Esta versão não substitui o aplicativo automaticamente.").font(.caption).foregroundStyle(.secondary)
             Text("Copyright © 2026 Open Mouse contributors").font(.caption).foregroundStyle(.secondary)
             Spacer()
-        }.padding(30)
+        }.padding(30).frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
