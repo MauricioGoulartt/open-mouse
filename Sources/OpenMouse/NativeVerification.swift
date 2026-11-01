@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import OpenMouseCore
 
 /// These checks construct events and inspect their wire representation. They
