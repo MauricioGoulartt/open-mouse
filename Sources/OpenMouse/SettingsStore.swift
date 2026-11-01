@@ -11,6 +11,15 @@ final class SettingsStore: ObservableObject {
     @Published var accessibilityGranted = AXIsProcessTrusted()
     @Published var loginEnabled = SMAppService.mainApp.status == .enabled
     @Published var capturedButton: Int?
+    @Published var automaticUpdateChecks = UserDefaults.standard.object(forKey: "OpenMouseAutomaticUpdateChecks") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(automaticUpdateChecks, forKey: "OpenMouseAutomaticUpdateChecks") }
+    }
+    @Published var includePrereleases = UserDefaults.standard.bool(forKey: "OpenMouseIncludePrereleases") {
+        didSet { UserDefaults.standard.set(includePrereleases, forKey: "OpenMouseIncludePrereleases") }
+    }
+    @Published var updateStatus = "Verifique as versões publicadas no GitHub."
+    @Published var availableRelease: URL?
+    @Published var checkingUpdates = false
     let engine = MouseEngine()
     let fileURL: URL
     private var unreadableConfiguration = false
@@ -106,6 +115,52 @@ final class SettingsStore: ObservableObject {
         engine.requestAccessibility()
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
+        }
+    }
+
+    func checkForUpdates(manual: Bool = true) {
+        guard !checkingUpdates else { return }
+        if !manual {
+            guard automaticUpdateChecks else { return }
+            let previous = UserDefaults.standard.double(forKey: "OpenMouseLastUpdateCheck")
+            guard Date().timeIntervalSince1970 - previous >= 86400 else { return }
+        }
+        checkingUpdates = true; updateStatus = "Verificando atualizações…"
+        let allowPrereleases = includePrereleases
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.checkingUpdates = false }
+            struct Release: Decodable {
+                let tag_name: String
+                let html_url: String
+                let draft: Bool
+                let prerelease: Bool
+            }
+            do {
+                let url = URL(string: "https://api.github.com/repos/MauricioGoulartt/open-mouse/releases?per_page=30")!
+                var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
+                request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+                request.setValue("OpenMouse/0.1.0", forHTTPHeaderField: "User-Agent")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200, data.count <= 4_000_000 else {
+                    self.updateStatus = "Não foi possível consultar as versões. Tente novamente mais tarde."; return
+                }
+                let releases = try JSONDecoder().decode([Release].self, from: data)
+                let candidates = releases.filter { !$0.draft && (allowPrereleases || !$0.prerelease) }.compactMap { release -> (ReleaseVersion, Release)? in
+                    guard let version = ReleaseVersion(release.tag_name) else { return nil }; return (version, release)
+                }
+                let newest = candidates.max { $0.0 < $1.0 }
+                let current = ReleaseVersion(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")!
+                self.availableRelease = nil
+                if let newest, newest.0 > current,
+                   let target = URL(string: newest.1.html_url), target.scheme == "https", target.host == "github.com",
+                   target.path.hasPrefix("/MauricioGoulartt/open-mouse/releases/") {
+                    self.availableRelease = target; self.updateStatus = "Nova versão disponível: \(newest.1.tag_name)."
+                } else {
+                    self.updateStatus = candidates.isEmpty ? "Ainda não há versões publicadas. Você está usando a versão de desenvolvimento." : "Você está usando a versão mais recente deste canal."
+                }
+                UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "OpenMouseLastUpdateCheck")
+            } catch { self.updateStatus = "Não foi possível verificar atualizações: \(error.localizedDescription)" }
         }
     }
 }

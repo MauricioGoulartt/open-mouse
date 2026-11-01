@@ -42,7 +42,7 @@ struct SettingsView: View {
                     Spacer()
                     Circle().fill(store.engine.isRunning ? Color.green : Color.secondary).frame(width: 7, height: 7)
                     Text(store.engine.isRunning ? "Ativo" : "Desativado").font(.callout).foregroundStyle(.secondary)
-                }.padding(24)
+                }.padding(24).background(Color(nsColor: .windowBackgroundColor))
                 Divider()
                 switch section ?? .general {
                 case .general: general
@@ -51,7 +51,7 @@ struct SettingsView: View {
                 case .permissions: permissions
                 case .about: about
                 }
-            }
+            }.background(Color(nsColor: .windowBackgroundColor))
         }
         .frame(minWidth: 760, minHeight: 560)
         .sheet(item: $editing) { mapping in
@@ -94,6 +94,7 @@ struct SettingsView: View {
             Section("Recursos") {
                 Toggle("Aprimorar rolagem", isOn: binding(\.scrollEnabled))
                 Toggle("Remapear botões", isOn: binding(\.buttonsEnabled))
+                Toggle("Mostrar na barra de menus", isOn: binding(\.showMenuBarIcon))
                 Toggle("Iniciar ao entrar no macOS", isOn: Binding(get: { store.loginEnabled }, set: store.setLogin))
             }
             Section("Ajustes") {
@@ -151,7 +152,7 @@ struct SettingsView: View {
                 Button { editing = Mapping(button: 3, trigger: .click, action: MouseAction(.middleClick)) } label: {
                     Label("Adicionar", systemImage: "plus")
                 }
-            }.padding(18)
+            }.padding(18).background(Color(nsColor: .windowBackgroundColor))
             List {
                 ForEach(store.configuration.mappings) { mapping in
                     HStack(spacing: 12) {
@@ -208,6 +209,16 @@ struct SettingsView: View {
             Text("Paridade completa com o Mac Mouse Fix ainda não foi comprovada. O projeto não incorpora seu código, marca ou arquivos.")
                 .font(.callout).foregroundStyle(.secondary)
             Link("Código-fonte e progresso", destination: URL(string: "https://github.com/MauricioGoulartt/open-mouse")!)
+            Divider()
+            Text("Atualizações").font(.headline)
+            Toggle("Verificar atualizações ao abrir os ajustes", isOn: $store.automaticUpdateChecks)
+            Toggle("Incluir versões beta", isOn: $store.includePrereleases)
+            HStack {
+                Button(store.checkingUpdates ? "Verificando…" : "Verificar agora") { store.checkForUpdates() }.disabled(store.checkingUpdates)
+                if let release = store.availableRelease { Link("Abrir nova versão…", destination: release) }
+            }
+            Text(store.updateStatus).font(.caption).foregroundStyle(.secondary)
+            Text("Novas versões são abertas no GitHub para download. Esta versão não substitui o aplicativo automaticamente.").font(.caption).foregroundStyle(.secondary)
             Text("Copyright © 2026 Open Mouse contributors").font(.caption).foregroundStyle(.secondary)
             Spacer()
         }.padding(30)

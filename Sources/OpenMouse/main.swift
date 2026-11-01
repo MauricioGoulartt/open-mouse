@@ -2,11 +2,20 @@ import AppKit
 import SwiftUI
 import ApplicationServices
 import OpenMouseCore
+import Combine
+import Carbon
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
     private var store: SettingsStore!
     private var statusItem: NSStatusItem!
     private var window: NSWindow?
+    private var subscriptions = Set<AnyCancellable>()
+    private var loginLaunch = false
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        loginLaunch = NSAppleEventManager.shared().currentAppleEvent?
+            .paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard NSRunningApplication.runningApplications(withBundleIdentifier: Bundle.main.bundleIdentifier ?? "io.github.mauriciogoulartt.open-mouse")
@@ -24,8 +33,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(withTitle: "Pausar botões", action: #selector(toggleButtons), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Encerrar Open Mouse", action: #selector(quit), keyEquivalent: "q").target = self
-        statusItem.menu = menu
-        if !CommandLine.arguments.contains("--background") { openSettings() }
+        menu.delegate = self; statusItem.menu = menu
+        store.$configuration.sink { [weak self] configuration in
+            self?.statusItem.isVisible = configuration.showMenuBarIcon
+            NSApplication.shared.setActivationPolicy(configuration.showMenuBarIcon ? .accessory : .regular)
+        }.store(in: &subscriptions)
+        if !CommandLine.arguments.contains("--background") && !loginLaunch { openSettings() }
     }
 
     @objc func openSettings() {
@@ -37,7 +50,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             value.center(); window = value
         }
         NSApplication.shared.activate(ignoringOtherApps: true); window?.makeKeyAndOrderFront(nil)
+        store.checkForUpdates(manual: false)
     }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.item(at: 2)?.title = store.configuration.enabled ? "Desativar Open Mouse" : "Ativar Open Mouse"
+        menu.item(at: 3)?.state = store.configuration.scrollEnabled ? .off : .on
+        menu.item(at: 4)?.state = store.configuration.buttonsEnabled ? .off : .on
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { openSettings(); return true }
     @objc private func toggleEnabled() { store.update { $0.enabled.toggle() } }
     @objc private func toggleScroll() { store.update { $0.scrollEnabled.toggle() } }
     @objc private func toggleButtons() { store.update { $0.buttonsEnabled.toggle() } }
