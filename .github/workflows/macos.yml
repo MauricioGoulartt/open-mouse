@@ -36,7 +36,12 @@ jobs:
       - name: Release build
         run: swift build -c release --jobs 2
       - name: Package app
-        run: bash scripts/package-app.sh --skip-build
+        run: |
+          bash scripts/package-app.sh --skip-build
+          test -s dist/OpenMouse-macOS.zip
+          test ! -d "dist/Open Mouse.app"
+          bash scripts/package-app.sh --skip-build --keep-app
+          test -s "dist/Open Mouse.app/Contents/Resources/AppIcon.icns"
       - name: Non-intercepting diagnostics
         run: '"dist/Open Mouse.app/Contents/MacOS/OpenMouse" --diagnose | tee dist/diagnostics.json'
       - name: Native event protocol checks without posting

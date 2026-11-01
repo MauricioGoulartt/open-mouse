@@ -30,7 +30,8 @@ struct SettingsView: View {
             .navigationSplitViewColumnWidth(165)
             .safeAreaInset(edge: .top) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Image(systemName: "computermouse.fill").font(.system(size: 32)).foregroundStyle(.tint)
+                    Image(nsImage: AppBrand.icon).resizable().scaledToFit().frame(width: 40, height: 40)
+                        .accessibilityLabel("Open Mouse")
                     Text("Open Mouse").font(.title3.weight(.semibold))
                     Text("Seu mouse, do seu jeito.").font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
@@ -203,9 +204,10 @@ struct SettingsView: View {
     private var about: some View {
         ScrollView {
         VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "computermouse.fill").font(.system(size: 54)).foregroundStyle(.tint)
+            Image(nsImage: AppBrand.icon).resizable().scaledToFit().frame(width: 76, height: 76)
+                .accessibilityLabel("Open Mouse")
             Text("Open Mouse").font(.largeTitle.bold())
-            Text("0.1.0 · compilação \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "local") · desenvolvimento")
+            Text("\(AppBrand.version) · compilação \(AppBrand.build) · desenvolvimento")
                 .foregroundStyle(.secondary)
             Text("Um utilitário de mouse para macOS, independente e aberto. Licença MIT.")
             Text("Paridade completa com o Mac Mouse Fix ainda não foi comprovada. O projeto não incorpora seu código, marca ou arquivos.")

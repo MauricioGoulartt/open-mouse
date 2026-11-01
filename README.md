@@ -1,5 +1,7 @@
 # Open Mouse
 
+<img src="Resources/AppIcon.png" width="96" alt="Ícone do Open Mouse">
+
 Utilitário independente de mouse para macOS. Swift, AppKit e SwiftUI. Licença MIT.
 
 **Em desenvolvimento: a paridade completa com Mac Mouse Fix 3.1.0 ainda não foi
@@ -39,8 +41,11 @@ a partir do código; isso ainda requer qualificação própria.
 ```bash
 swift test --jobs 2
 bash scripts/package-app.sh
-open "dist/Open Mouse.app"
 ```
+
+O empacotamento deixa apenas `dist/OpenMouse-macOS.zip`. Instale o aplicativo
+desse ZIP em `~/Applications`, mantendo uma única cópia fora do arquivo.
+O parâmetro `--keep-app`, usado no CI, conserva o bundle extra para os testes.
 
 A assinatura de desenvolvimento é ad hoc, sem notarização. Para transformar
 eventos, autorize **Open Mouse** em Ajustes do Sistema → Privacidade e Segurança →

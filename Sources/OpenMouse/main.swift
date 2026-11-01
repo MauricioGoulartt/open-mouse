@@ -78,8 +78,8 @@ if CommandLine.arguments.contains("--system-gesture-check") {
 } else if CommandLine.arguments.contains("--diagnose") {
     let info: [String: Any] = [
         "name": "Open Mouse",
-        "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0",
-        "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unpackaged",
+        "version": AppBrand.version,
+        "build": AppBrand.build,
         "sourceRevision": Bundle.main.object(forInfoDictionaryKey: "OpenMouseSourceRevision") as? String ?? "unversioned",
         "accessibility": AXIsProcessTrusted(),
         "inputMonitoring": CGPreflightListenEventAccess(), "macOS": ProcessInfo.processInfo.operatingSystemVersionString,

@@ -140,7 +140,7 @@ final class SettingsStore: ObservableObject {
                 let url = URL(string: "https://api.github.com/repos/MauricioGoulartt/open-mouse/releases?per_page=30")!
                 var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
                 request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-                request.setValue("OpenMouse/0.1.0", forHTTPHeaderField: "User-Agent")
+                request.setValue("OpenMouse/\(AppBrand.version)", forHTTPHeaderField: "User-Agent")
                 let (data, response) = try await URLSession.shared.data(for: request)
                 guard (response as? HTTPURLResponse)?.statusCode == 200, data.count <= 4_000_000 else {
                     self.updateStatus = "Não foi possível consultar as versões. Tente novamente mais tarde."; return
@@ -150,7 +150,7 @@ final class SettingsStore: ObservableObject {
                     guard let version = ReleaseVersion(release.tag_name) else { return nil }; return (version, release)
                 }
                 let newest = candidates.max { $0.0 < $1.0 }
-                let current = ReleaseVersion(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")!
+                let current = ReleaseVersion(AppBrand.version)!
                 self.availableRelease = nil
                 if let newest, newest.0 > current,
                    let target = URL(string: newest.1.html_url), target.scheme == "https", target.host == "github.com",
