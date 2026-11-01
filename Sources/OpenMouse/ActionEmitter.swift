@@ -12,6 +12,7 @@ final class ActionEmitter {
     private var scrollFraction = ScrollVector.zero
     private var scrollStarted = false
     private var dockAxis: Int64?
+    private var dockStarted = false
     private var dockProgress: Double = 0
     private var dockVelocity: Double = 0
     private var lastGestureTime: Double = 0
@@ -124,7 +125,7 @@ final class ActionEmitter {
 
     private func begin(_ action: MouseAction) {
         cancelMomentum()
-        continuous = .zero; dockAxis = nil; dockProgress = 0; dockVelocity = 0
+        continuous = .zero; dockAxis = nil; dockStarted = false; dockProgress = 0; dockVelocity = 0
         dragVelocity = .zero
         lastGestureTime = ProcessInfo.processInfo.systemUptime
         switch action.kind {
@@ -133,7 +134,7 @@ final class ActionEmitter {
         case .scrollAndNavigate, .horizontalScroll, .fastScroll, .preciseScroll:
             scrollStarted = true; scroll(.zero, phase: 1)
         case .desktopAndLaunchpad:
-            dockAxis = 3; dockSwipe(phase: 1)
+            dockAxis = 3
         default: break
         }
     }
@@ -156,21 +157,20 @@ final class ActionEmitter {
         case .spacesAndMissionControl:
             if dockAxis == nil {
                 dockAxis = abs(continuous.x) > abs(continuous.y) ? 1 : 2
-                dockSwipe(phase: 1)
             }
             let previous = dockProgress
             dockProgress = -(dockAxis == 1 ? continuous.x : continuous.y) / 350
             let now = ProcessInfo.processInfo.systemUptime
             dockVelocity = (dockProgress - previous) / max(0.001, now - lastGestureTime)
             lastGestureTime = now
-            dockSwipe(phase: 2)
+            changedDockProgress()
         case .desktopAndLaunchpad:
             let previous = dockProgress
             dockProgress = -(continuous.x + continuous.y) / 25
             let now = ProcessInfo.processInfo.systemUptime
             dockVelocity = (dockProgress - previous) / max(0.001, now - lastGestureTime)
             lastGestureTime = now
-            dockSwipe(phase: 2)
+            changedDockProgress()
         default: break
         }
     }
@@ -186,7 +186,7 @@ final class ActionEmitter {
                 momentum.start(velocity: dragVelocity)
             }
         case .spacesAndMissionControl, .desktopAndLaunchpad:
-            if dockAxis != nil { dockSwipe(phase: phase) }; dockAxis = nil
+            if dockStarted { dockSwipe(phase: phase) }; dockAxis = nil; dockStarted = false
         default: break
         }
         continuous = .zero
@@ -202,6 +202,16 @@ final class ActionEmitter {
     func cancelMomentum() {
         momentum.cancel()
         if momentumStarted { scroll(.zero, momentum: 3); momentumStarted = false }
+    }
+
+    private func changedDockProgress() {
+        guard dockProgress != 0 || dockStarted else { return }
+        // Dock chooses the gesture's direction from the first movement. A
+        // zero-progress Began does not establish that direction. The first
+        // movement is Began; subsequent movements are Changed.
+        let phase: Int64 = dockStarted ? 2 : 1
+        dockStarted = true
+        dockSwipe(phase: phase)
     }
 
     private func gesture(hidType: Int64, phase: Int64, valueField: UInt32? = nil, value: Double = 0) {
