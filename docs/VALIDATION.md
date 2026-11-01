@@ -30,7 +30,32 @@ e [dock-packet-check.md](research/dock-packet-check.md).
 
 ## Execução automatizada
 
-### Candidato instalado
+### Atualização visual 0.1.1
+
+[Run 41305334919](https://github.com/MauricioGoulartt/open-mouse/actions/runs/41305334919),
+SHA `e22c2cc0708ff540bb2ac38f71ebd1f417243583`, compilação **23**.
+O workflow completo passou, incluindo os mesmos 26 testes unitários, cinco
+verificações de protocolo, oito de entrada real e três gestos do sistema.
+O novo logo foi convertido em ICNS com tamanhos normais/Retina e conferido na
+interface real do aplicativo instalado, que mostrou versão 0.1.1 e estado Ativo.
+
+O usuário havia encontrado três entradas do Open Mouse. Eram a aplicação
+principal em `~/Applications` e duas cópias de build/rollback no projeto.
+As duas cópias foram arquivadas em ZIP, verificadas arquivo por arquivo,
+desregistradas pontualmente do Launch Services e removidas como bundles.
+O inventário final do Spotlight encontrou somente `~/Applications/Open Mouse.app`,
+e nenhum `.app` permaneceu na árvore do projeto.
+
+O pacote local agora deixa apenas um ZIP por padrão; o CI verifica que nenhum
+`dist/Open Mouse.app` existe após esse modo, antes de usar `--keep-app` para
+executar as verificações isoladas. Essa guarda protege a causa das duplicatas.
+Os ajustes foram preservados byte a byte, e Acessibilidade foi renovada pela
+interface do macOS após a atualização da assinatura ad hoc.
+
+Pacote publicado como [prévia v0.1.1](https://github.com/MauricioGoulartt/open-mouse/releases/tag/v0.1.1).
+SHA-256 do ZIP: `289fa85aef874bfddbe021e9bc8ea024db4c50365af72457d9de61224bae37bb`.
+
+### Validação inicial 0.1.0
 
 [Run 41302325635](https://github.com/MauricioGoulartt/open-mouse/actions/runs/41302325635),
 SHA `f54475af13841ca3e6ea35e59ae93eed13de3616`, compilação **22**,
@@ -66,7 +91,7 @@ Comandos canônicos:
 ```bash
 swift test --jobs 2
 swift build -c release --jobs 2
-bash scripts/package-app.sh --skip-build
+bash scripts/package-app.sh --skip-build --keep-app
 "dist/Open Mouse.app/Contents/MacOS/OpenMouse" --diagnose
 "dist/Open Mouse.app/Contents/MacOS/OpenMouse" --check-native-events
 OPEN_MOUSE_ISOLATED_TEST=1 "dist/Open Mouse.app/Contents/MacOS/OpenMouse" --integration-check

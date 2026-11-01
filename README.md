@@ -7,7 +7,7 @@ Utilitário independente de mouse para macOS. Swift, AppKit e SwiftUI. Licença 
 **Em desenvolvimento: a paridade completa com Mac Mouse Fix 3.1.0 ainda não foi
 comprovada.** O Open Mouse não contém código ou recursos daquele aplicativo.
 
-[Baixar a prévia 0.1.0 para Apple Silicon](https://github.com/MauricioGoulartt/open-mouse/releases/tag/v0.1.0)
+[Baixar a prévia 0.1.1 para Apple Silicon](https://github.com/MauricioGoulartt/open-mouse/releases/tag/v0.1.1)
 · [Validação e limites](docs/VALIDATION.md)
 
 ## Implementado no código
