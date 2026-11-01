@@ -166,13 +166,17 @@ func runSystemGestureProbe() {
         let configuration = NSWorkspace.OpenConfiguration(); configuration.arguments = ["1"]
         NSWorkspace.shared.openApplication(at: control, configuration: configuration)
         after(1) {
+            let element = elementAtFixtureCenter()
             capture("show-desktop-positive-control")
             results.append(["case": "show-desktop-positive-control", "beforeFixture": beforeFixture,
-                            "afterFixture": fixtureInfo(), "fixtureHiddenByShowDesktop": !fixtureOnScreen(),
-                            "elementAtFixtureCenter": elementAtFixtureCenter(),
+                            "afterFixture": fixtureInfo(), "desktopVisible": element["bundle"] == "com.apple.finder",
+                            "elementAtFixtureCenter": element,
                             "afterAX": dockAccessibility().tree])
             NSWorkspace.shared.openApplication(at: control, configuration: configuration)
             after(0.8) {
+                guard element["bundle"] == "com.apple.finder" else {
+                    finish("The observer did not detect Apple's own Show Desktop UI"); return
+                }
                 window.makeKeyAndOrderFront(nil); app.activate(ignoringOtherApps: true)
                 after(0.3) { missionControlControl() }
             }

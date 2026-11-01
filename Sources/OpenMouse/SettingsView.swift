@@ -205,7 +205,8 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "computermouse.fill").font(.system(size: 54)).foregroundStyle(.tint)
             Text("Open Mouse").font(.largeTitle.bold())
-            Text("0.1.0 · desenvolvimento").foregroundStyle(.secondary)
+            Text("0.1.0 · compilação \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "local") · desenvolvimento")
+                .foregroundStyle(.secondary)
             Text("Um utilitário de mouse para macOS, independente e aberto. Licença MIT.")
             Text("Paridade completa com o Mac Mouse Fix ainda não foi comprovada. O projeto não incorpora seu código, marca ou arquivos.")
                 .font(.callout).foregroundStyle(.secondary)

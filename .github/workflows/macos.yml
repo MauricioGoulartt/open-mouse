@@ -57,6 +57,7 @@ jobs:
           name: OpenMouse-macOS
           path: |
             dist/OpenMouse-macOS.zip
+            dist/OpenMouse-macOS.zip.sha256
             dist/diagnostics.json
             dist/native-event-checks.txt
             dist/input-integration-checks.txt

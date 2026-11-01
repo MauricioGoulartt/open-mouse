@@ -20,8 +20,10 @@ final class MouseEngine {
     private var configuration = Configuration()
     private var scrollZoomActive = false
     private var lastZoomTime: Double = 0
+    private let authorizationCheck: () -> Bool
 
-    init() {
+    init(authorizationCheck: @escaping () -> Bool = { AXIsProcessTrusted() }) {
+        self.authorizationCheck = authorizationCheck
         emitter.onNotice = { [weak self] in self?.onStatus?($0) }
         frontmostObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
@@ -35,7 +37,11 @@ final class MouseEngine {
 
     func configure(_ value: Configuration) {
         cancelGestures(); configuration = value; buttons.configuration = value
-        if value.enabled { start() } else { stop() }
+        if value.enabled && authorizationCheck() { start() }
+        else {
+            stop()
+            if value.enabled { onStatus?("Autorize o Open Mouse em Acessibilidade para ativar.") }
+        }
     }
 
     func requestAccessibility() {
@@ -48,7 +54,7 @@ final class MouseEngine {
         if !NSRunningApplication.runningApplications(withBundleIdentifier: "com.nuebling.mac-mouse-fix.helper").isEmpty {
             onStatus?("O Mac Mouse Fix está ativo. Desative-o antes de ativar o Open Mouse para evitar processamento duplicado."); return
         }
-        guard AXIsProcessTrusted() else { onStatus?("Autorize o Open Mouse em Acessibilidade para ativar."); return }
+        guard authorizationCheck() else { onStatus?("Autorize o Open Mouse em Acessibilidade para ativar."); return }
         let types: [CGEventType] = [.scrollWheel, .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
             .otherMouseDown, .otherMouseUp, .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
         let mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << $1.rawValue) }
@@ -93,7 +99,7 @@ final class MouseEngine {
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             cancelGestures()
-            if let tap, AXIsProcessTrusted() { CGEvent.tapEnable(tap: tap, enable: true) }
+            if let tap, authorizationCheck() { CGEvent.tapEnable(tap: tap, enable: true) }
             else { onStatus?("A captura foi interrompida pelo macOS. Reative após conferir a permissão.") }
             return Unmanaged.passUnretained(event)
         }

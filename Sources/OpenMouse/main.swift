@@ -77,7 +77,11 @@ if CommandLine.arguments.contains("--system-gesture-check") {
     catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
 } else if CommandLine.arguments.contains("--diagnose") {
     let info: [String: Any] = [
-        "name": "Open Mouse", "version": "0.1.0", "accessibility": AXIsProcessTrusted(),
+        "name": "Open Mouse",
+        "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0",
+        "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unpackaged",
+        "sourceRevision": Bundle.main.object(forInfoDictionaryKey: "OpenMouseSourceRevision") as? String ?? "unversioned",
+        "accessibility": AXIsProcessTrusted(),
         "inputMonitoring": CGPreflightListenEventAccess(), "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
         "interceptionStarted": false
     ]

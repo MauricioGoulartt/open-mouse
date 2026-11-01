@@ -44,7 +44,8 @@ func runInputIntegration() {
     let previousCursor = CGEvent(source: nil)?.location ?? .zero
     let screenHeight = NSScreen.screens.first?.frame.height ?? 900
     let point = CGPoint(x: window.frame.midX, y: screenHeight - window.frame.midY)
-    let engine = MouseEngine()
+    var authorizationAllowed = true
+    let engine = MouseEngine(authorizationCheck: { authorizationAllowed && AXIsProcessTrusted() })
     var config = Configuration(); config.enabled = true; config.doubleClickInterval = 0.12; config.holdDelay = 0.15
     config.mappings = [
         Mapping(button: 3, trigger: .click, action: MouseAction(.keyboardShortcut, keyCode: 0)),
@@ -77,6 +78,20 @@ func runInputIntegration() {
         event?.post(tap: .cghidEventTap)
     }
     func after(_ seconds: Double, _ action: @escaping () -> Void) { DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: action) }
+    func verifyGestureDelivery() {
+        engine.stop()
+        emitter.perform(MouseAction(.smartZoom))
+        let zoom = MouseAction(.zoom)
+        after(0.1) { emitter.apply([.begin(zoom)]) }
+        after(0.15) { emitter.apply([.change(zoom, ScrollVector(y: -10))]) }
+        after(0.2) { emitter.apply([.end(zoom)]) }
+        after(0.5) {
+            guard probe.smartZoomCount > 0 else { finish("Smart Zoom was not delivered globally to the fixture"); return }
+            guard probe.magnifyCount > 0 || probe.recognizedMagnifyCount > 0 else { finish("Pinch was not delivered globally to the fixture"); return }
+            passed.append("Smart Zoom and pinch are delivered through the session to the owned native view")
+            finish()
+        }
+    }
     after(0.3) {
         CGWarpMouseCursorPosition(point); window.makeFirstResponder(probe); engine.configure(config)
         guard engine.isRunning else { finish("Real event tap failed to start"); return }
@@ -108,17 +123,22 @@ func runInputIntegration() {
                             after(0.15) {
                                 guard abs(probe.scrollTotal - trackpadBefore - 5) < 0.1 else { finish("Unknown continuous/trackpad event was modified"); return }
                                 passed.append("Unknown continuous/trackpad input passes through unchanged")
-                                engine.stop()
-                                emitter.perform(MouseAction(.smartZoom))
-                                let zoom = MouseAction(.zoom)
-                                after(0.1) { emitter.apply([.begin(zoom)]) }
-                                after(0.15) { emitter.apply([.change(zoom, ScrollVector(y: -10))]) }
-                                after(0.2) { emitter.apply([.end(zoom)]) }
-                                after(0.5) {
-                                    guard probe.smartZoomCount > 0 else { finish("Smart Zoom was not delivered globally to the fixture"); return }
-                                    guard probe.magnifyCount > 0 || probe.recognizedMagnifyCount > 0 else { finish("Pinch was not delivered globally to the fixture"); return }
-                                    passed.append("Smart Zoom and pinch are delivered through the session to the owned native view")
-                                    finish()
+                                // Exercise revocation/regrant through the real
+                                // tap lifecycle without modifying the OS TCC
+                                // database or any user's permissions.
+                                authorizationAllowed = false; engine.configure(config)
+                                guard !engine.isRunning else { finish("Revoked authorization left the event tap running"); return }
+                                button(true); after(0.02) { button(false) }
+                                after(0.25) {
+                                    guard probe.keys == [0, 8, 11] else { finish("Revoked authorization still transformed input"); return }
+                                    authorizationAllowed = true; engine.configure(config)
+                                    guard engine.isRunning else { finish("Regranted authorization did not restart the event tap"); return }
+                                    button(true); after(0.02) { button(false) }
+                                    after(0.3) {
+                                        guard probe.keys == [0, 8, 11, 0] else { finish("Restored authorization did not restore real mappings"); return }
+                                        passed.append("Authorization loss stops interception; regrant restores the real input pipeline")
+                                        verifyGestureDelivery()
+                                    }
                                 }
                             }
                         }
